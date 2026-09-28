@@ -34,7 +34,8 @@ elif ! git -C "$target" apply --reverse --check "$patch" 2>/dev/null; then
   echo "engine patch does not match this checkout" >&2; exit 1
 fi
 cd "$target"
-pnpm install --frozen-lockfile
+# Unapproved native builds (tree-sitter, @parcel/watcher) are unused by the bridge; skip, don't fail.
+pnpm install --frozen-lockfile --config.strict-dep-builds=false
 pnpm --dir packages/league run setup:showdown
 pnpm --dir packages/league run build
 python3 - "$target/packages/league" "$here/engine.lock.json" "$here/src/league_evals/provenance.py" <<'PY'
