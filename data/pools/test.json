@@ -1,0 +1,34 @@
+{
+  "id": "test",
+  "format": "gen9championsvgc2026regmcbo3",
+  "teams": [
+    {
+      "id": "boschmans-mega-pyroar",
+      "packed": "Pyroar||Pyroarite|Unnerve|HeatWave,Overheat,SolarBeam,Protect|Timid|2,,,32,,32||||50|]Whimsicott||FocusSash|Prankster|Moonblast,Tailwind,SunnyDay,Protect|Timid|2,,,32,,32||||50|]Ninetales||ChoiceScarf|Drought|Overheat,HeatWave,SolarBeam,FakeTears|Modest|2,,,32,,32||||50|]Farigiraf||SitrusBerry|ArmorTail|Thunderbolt,TwinBeam,TrickRoom,HelpingHand|Bold|25,,10,,24,7||||50|]Basculegion||LifeOrb|Adaptability|WaveCrash,LastRespects,AquaJet,Protect|Adamant|24,18,2,,8,14|M|||50|]Floette-Eternal||Floettite|FlowerVeil|Moonblast,DazzlingGleam,LightofRuin,Protect|Modest|,,2,32,,32|F|||50|"
+    },
+    {
+      "id": "cybertron-mega-staraptor",
+      "packed": "Whimsicott||FocusSash|Prankster|Tickle,Tailwind,Moonblast,FakeTears|Timid|2,,,32,,32||||50|]Staraptor||Staraptite|Intimidate|BraveBird,CloseCombat,Roost,Protect|Jolly|2,32,,,,32||||50|]Garchomp||RoseliBerry|RoughSkin|DragonClaw,StompingTantrum,RockTomb,PoisonJab|Jolly|,30,4,,,32||||50|]Gholdengo||LifeOrb|GoodasGold|MakeItRain,ShadowBall,PowerGem,Protect|Modest|2,,,32,,32||||50|]Basculegion||MysticWater|Adaptability|WaveCrash,LastRespects,AquaJet,Protect|Adamant|4,31,11,,,20||||50|]Typhlosion-Hisui||ChoiceScarf|Frisk|Eruption,HeatWave,BurnUp,ShadowBall|Modest|2,,,32,,32||||50|"
+    },
+    {
+      "id": "endo-mega-sceptile",
+      "packed": "Sceptile||Sceptilite|Overgrow|EnergyBall,DragonPulse,EarthPower,Detect|Modest|14,,1,26,,25||||50|]Talonflame||LifeOrb|GaleWings|BraveBird,Overheat,Tailwind,Protect|Naive|,27,,21,,18||||50|]Gholdengo||FocusSash|GoodasGold|MakeItRain,ShadowBall,PowerGem,Protect|Timid|2,,,32,,32||||50|]Rotom-Wash||ChoiceScarf|Levitate|HydroPump,Thunderbolt,Discharge,WillOWisp|Timid|18,,,16,,32||||50|]Garchomp||SoftSand|RoughSkin|DragonClaw,Earthquake,RockSlide,Protect|Jolly|14,20,,,,32||||50|]Sneasler||WhiteHerb|Unburden|CloseCombat,DireClaw,ThroatChop,Protect|Adamant|10,7,19,,,30||||50|"
+    },
+    {
+      "id": "jpnats-mega-swampert",
+      "packed": "Grimmsnarl||RoseliBerry|Prankster|FoulPlay,PartingShot,Reflect,LightScreen|Careful|32,,20,,14,|M|||50|]Swampert||Swampertite|Damp|WaveCrash,Earthquake,IcePunch,Protect|Adamant|18,30,,,,18||||50|]Pelipper||SitrusBerry|Drizzle|Hurricane,WeatherBall,Tailwind,WideGuard|Modest|32,,1,5,17,11||||50|]Archaludon||Leftovers|Stamina|ElectroShot,DragonPulse,FlashCannon,Protect|Modest|32,,,1,29,4||||50|]Sinistcha||CobaBerry|Hospitality|MatchaGotcha,RagePowder,LifeDew,Protect|Relaxed|32,,4,,30,||||50|]Floette-Eternal||Floettite|FlowerVeil|Moonblast,DazzlingGleam,CalmMind,Protect|Modest|16,,3,25,,22|F|||50|"
+    },
+    {
+      "id": "rios-mega-raichu-x-venusaur",
+      "packed": "Raichu||RaichuniteX|LightningRod|FakeOut,VoltTackle,VoltSwitch,Encore|Jolly|2,32,,,,32||||50|]Venusaur||Venusaurite|Chlorophyll|Protect,SludgeBomb,EarthPower,GigaDrain|Modest|32,,1,14,,19||||50|]Pelipper||SitrusBerry|Drizzle|WeatherBall,Tailwind,Hurricane,WideGuard|Bold|31,,,8,25,2||||50|]Archaludon||Leftovers|Stamina|Protect,DragonPulse,FlashCannon,ElectroShot|Bold|32,,2,4,15,13||||50|]Grimmsnarl||LightClay|Prankster|LightScreen,SpiritBreak,Reflect,PartingShot|Careful|32,,11,,21,2|M|||50|]Basculegion||ChoiceScarf|Adaptability|FlipTurn,WaveCrash,LastRespects,AquaJet|Jolly|,21,13,,,32|M|||50|"
+    },
+    {
+      "id": "wolfe-mega-raichu-y",
+      "packed": "Raichu||RaichuniteY|LightningRod|Protect,ZapCannon,FocusBlast,FakeOut|Modest|16,,2,24,,24||||50|]Basculegion||MysticWater|Adaptability|Protect,WaveCrash,LastRespects,AquaJet|Adamant|12,32,7,,,15|M|||50|]Whimsicott||FocusSash|Prankster|Protect,Moonblast,Tailwind,Encore|Timid|2,,,32,,32||||50|]Garchomp||SitrusBerry|RoughSkin|RockSlide,StompingTantrum,DragonClaw,Protect|Adamant|22,10,,,2,32||||50|]Floette-Eternal||Floettite|FlowerVeil|Protect,Moonblast,LightofRuin,DazzlingGleam|Modest|2,,,32,,32|F|||50|]Gholdengo||LifeOrb|GoodasGold|Protect,MakeItRain,NastyPlot,ShadowBall|Modest|32,,2,10,3,19||||50|"
+    }
+  ],
+  "provenance": {
+    "harness_commit": "88b2112f987805846964d40b2412004496b97268",
+    "showdown_commit": "3ab832905b012da47c355009e141b1660fa36808"
+  }
+}
