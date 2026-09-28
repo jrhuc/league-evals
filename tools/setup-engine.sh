@@ -35,7 +35,8 @@ elif ! git -C "$target" apply --reverse --check "$patch" 2>/dev/null; then
 fi
 cd "$target"
 # Unapproved native builds (tree-sitter, @parcel/watcher) are unused by the bridge; skip, don't fail.
-pnpm install --frozen-lockfile --config.strict-dep-builds=false
+grep -q '^strictDepBuilds:' pnpm-workspace.yaml || printf '\nstrictDepBuilds: false\n' >> pnpm-workspace.yaml
+pnpm install --frozen-lockfile
 pnpm --dir packages/league run setup:showdown
 pnpm --dir packages/league run build
 python3 - "$target/packages/league" "$here/engine.lock.json" "$here/src/league_evals/provenance.py" <<'PY'
