@@ -9,7 +9,7 @@ The unit is a model-plus-tools system making one joint decision in the middle of
 No game is played to the end and no judge model is involved. Each choice is scored against a table
 the pinned simulator computed for that decision.
 
-Damage is the natural foil. The harness's fixed opponent already plays the largest projected damage,
+Damage is the natural foil. The harness's `greedy` policy already plays the largest projected damage,
 and a model that only ever does the same adds nothing over it. The decisions kept here are exactly
 the ones where that policy gives up win rate: a Protect that denies a double target, speed control
 before the attack, a switch that keeps a win condition alive, or an attack into the slot that matters
@@ -65,12 +65,15 @@ from the same passes.
 ```sh
 uv run league-positions build /path/to/run --name league --jobs 8
 uv run league-positions baselines league
+uv run league-positions verify league --jobs 8
 uv run inspect eval league_evals/vgc_position --model PROVIDER/MODEL -T positions=league --log-dir logs/positions
 uv run league-positions report logs/positions
 ```
 
 The task fast-forwards the recorded game through the bridge, shows the model the decision exactly as
 a league coach would see it with the game so far as its history, takes one submission, and stops.
+`verify` recomputes every stored value on the current engine, which is how a dataset built on an
+earlier engine commit is carried forward.
 The seats are named `focal` and `opponent`; the recorded model names never reach the prompt. The
 model is told it is taking over a game under way and to maximise its probability of winning it.
 `tool_access` works as in `vgc_battle`. `limit_hidden=0` keeps only decisions where the focal seat

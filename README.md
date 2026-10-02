@@ -69,7 +69,7 @@ is too weak for a headline; whether greedy separates stronger models is open. Th
 
 ## Try it
 
-Requires Python 3.11+, [uv](https://docs.astral.sh/uv/), Node 24, and pnpm 12.3.4.
+Requires Python 3.11+, [uv](https://docs.astral.sh/uv/), Node 24, and pnpm 12.8.1.
 The pinned parent harness declares Node `>=24.21.0 <25`.
 
 ```sh

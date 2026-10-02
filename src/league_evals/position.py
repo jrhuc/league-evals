@@ -7,22 +7,14 @@ from pathlib import Path
 
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
-from inspect_ai.model import ChatMessageSystem, ChatMessageUser
 from inspect_ai.solver import Generate, Solver, TaskState, solver
 from inspect_ai.util import store
 
-from .battle import (
-    INSTRUCTIONS,
-    TOOL_INSTRUCTIONS,
-    Session,
-    play_decision,
-    reference_tool,
-    submit_action,
-)
-from .bridge import BridgeError, LeagueBridge
+from .battle import TOOL_ACCESS, Session, play_decision
+from .bridge import EXTERNAL, BridgeError, LeagueBridge
 from .positions import load_positions
 from .provenance import tree_hash
-from .scorers import CALCULATORS, discipline, efficiency, position_regret
+from .scorers import discipline, efficiency, position_regret
 
 POSITION_INPUT = (
     "You are taking over one game that is already under way. The observation shows the battle "
@@ -34,29 +26,30 @@ POSITION_INPUT = (
 async def resume_position(bridge: LeagueBridge, source: dict, position: dict) -> dict:
     focal = position["focal"]
     other = "p2" if focal == "p1" else "p1"
-    event = await bridge.request(
+    await bridge.request(
         "start",
         {
-            "format": source["format"],
             "seed": source["seed"],
-            focal: {"name": "focal", "team": source["packed"][focal]},
-            other: {"name": "opponent", "team": source["packed"][other]},
-            "external": [focal],
-            "opponent": "greedy",
+            focal: {"name": "focal", "team": source["packed"][focal], "seat": EXTERNAL},
+            other: {"name": "opponent", "team": source["packed"][other], "seat": "greedy"},
             "script": {
                 focal: source["choices"][focal][: position["choice_index"]],
                 other: source["choices"][other][: position["opponent_choice_index"]],
             },
         },
     )
-    if (
-        event.get("kind") != "decision"
-        or event.get("phase") != "turn"
-        or event.get("turn") != position["turn"]
-        or event.get("decision") != 1
-        or event.get("pid", focal) != focal
-    ):
-        raise BridgeError(f"unexpected first position event: {event}")
+    event = await bridge.next_event()
+    exchange, view = event.get("exchange", {}), event.get("decision", {})
+    seen = (
+        event["kind"],
+        event.get("pid"),
+        exchange.get("task"),
+        view.get("phase"),
+        view.get("turn"),
+    )
+    if seen != ("exchange", focal, "decision-1", "turn", position["turn"]):
+        detail = event.get("outcome", {}).get("error") or seen
+        raise BridgeError(f"unexpected first position event: {detail}")
     return event
 
 
@@ -66,14 +59,15 @@ def play_position(max_generations: int = 24) -> Solver:
         meta = state.metadata
         position = meta["position"]
         source = meta["dataset"]["games"][position["game"]]["source"]
-        access = meta["tool_access"]
         store().set("completion", "incomplete")
         store().set("position_choice", None)
         session = None
         bridge = None
         try:
-            bridge = await LeagueBridge.open(source["format"], "open")
-            session = Session(bridge, focal=position["focal"])
+            bridge = await LeagueBridge.open(source["format"])
+            session = Session(
+                bridge, focal=position["focal"], access=meta["tool_access"], budget=max_generations
+            )
             store().set("provenance", bridge.hello)
             store().set("task_sha256", tree_hash(Path(__file__).parent, ("*.py",)))
             for key in ("harness_commit", "showdown_commit"):
@@ -81,29 +75,22 @@ def play_position(max_generations: int = 24) -> Solver:
                     raise BridgeError(
                         f"positions and engine {key} differ; re-export or restore engine"
                     )
-            catalog = await bridge.request("tools")
-            if access == "no_calculators":
-                catalog = [item for item in catalog if item["name"] not in CALCULATORS]
-            tools = [reference_tool(session, item) for item in catalog] + [submit_action(session)]
-            system = INSTRUCTIONS.format(
-                budget=max_generations, tool_instructions=TOOL_INSTRUCTIONS[access]
-            )
-            store().set("system_prompt", system)
-            store().set("tool_catalog", catalog)
-            state.messages = [
-                ChatMessageSystem(content=system),
-                ChatMessageUser(content=state.input_text),
-            ]
-            event = await resume_position(bridge, source, position)
             note = meta.get("note", {})
+            suffix = ""
             if note.get("text"):
                 from .notes import note_block
 
-                event = {
-                    **event,
-                    "prompt": event["prompt"] + note_block(note["source"], note["text"]),
-                }
-            await play_decision(state, session, event, tools, max_generations)
+                suffix = note_block(note["source"], note["text"])
+            event = await resume_position(bridge, source, position)
+            await play_decision(state, session, event, suffix)
+            while session.choice is None:
+                event = await bridge.next_event()
+                if event["kind"] == "exchange":
+                    await play_decision(state, session, event, suffix)
+                elif event["kind"] == "decision":
+                    session.resolved(event["row"])
+                else:
+                    raise BridgeError("the game ended before the decision was resolved")
             store().set("position_choice", session.choice)
             store().set("completion", "complete")
         except BaseException as error:
@@ -164,7 +151,7 @@ def vgc_position(
     limit_hidden: int | None = None,
     min_turn: int | None = None,
 ) -> Task:
-    if tool_access not in {*TOOL_INSTRUCTIONS, "both"}:
+    if tool_access not in {*TOOL_ACCESS, "both"}:
         raise ValueError("tool_access must be full, no_calculators, or both")
     if max_generations < 1:
         raise ValueError("max_generations must be positive")
@@ -173,13 +160,13 @@ def vgc_position(
     if min_turn is not None and min_turn < 1:
         raise ValueError("min_turn must be positive")
     dataset = load_positions(positions)
-    conditions = tuple(TOOL_INSTRUCTIONS) if tool_access == "both" else (tool_access,)
+    conditions = TOOL_ACCESS if tool_access == "both" else (tool_access,)
     samples = position_samples(dataset, positions, conditions, limit_hidden, min_turn)
     return Task(
         dataset=MemoryDataset(samples, name=positions),
         solver=play_position(max_generations=max_generations),
         scorer=[position_regret(), discipline(), efficiency()],
-        version=1,
+        version=2,
         metadata={
             "positions": positions,
             "tool_access": tool_access,

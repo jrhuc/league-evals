@@ -1,6 +1,8 @@
+from collections import deque
 from dataclasses import dataclass, field
 
 import pytest
+from fake_bridge import SEATS, SYSTEM, decision_row, exchange_event, external
 from inspect_ai import eval_async
 from inspect_ai.model import ModelOutput
 from inspect_ai.tool import ToolCall
@@ -10,61 +12,80 @@ from league_evals import battle
 from league_evals.bridge import BridgeError
 from league_evals.scorers import EMPTY_AUDIT
 
+REJECTION = "|error|[Invalid choice] Can't move: the move is disabled"
+
 
 @dataclass
 class FakeBridge:
     fail: bool = False
+    rejections: int = 0
+    error: str | None = None
     count: int = 0
+    sent: int = 0
     closed: bool = False
+    focal: str = "p1"
     requests: list = field(default_factory=list)
-    hello: dict = field(default_factory=lambda: battle.load_pool("test")["provenance"])
+    events: deque = field(default_factory=deque)
+    rows: list = field(default_factory=list)
+    hello: dict = field(
+        default_factory=lambda: {**battle.load_pool("test")["provenance"], "seats": SEATS}
+    )
 
     async def request(self, method, params=None):
         self.requests.append((method, params))
-        if method == "tools":
-            return [
-                {
-                    "name": n,
-                    "description": "Reference lookup.",
-                    "parameters": {"type": "object", "properties": {}},
-                }
-                for n in ("estimate_damage", "compare_action_order", "lookup_species")
-            ]
         if method == "start":
-            return self.event()
-        if method == "submit":
+            self.focal = external(params)
+            self.events.append(self.exchange())
+            return {"started": True}
+        if method in ("submit", "abandon"):
             if self.fail:
                 raise BridgeError("simulator transport failed")
+            source = "model" if method == "submit" else "model-default"
+            if self.rejections:
+                self.rejections -= 1
+                self.resolve(
+                    decision_row(self.focal, "move 1", outcome="rejected", error=REJECTION)
+                )
+                self.events.append(self.exchange())
+                return {"accepted": True}
             self.count += 1
-            if self.count < 2:
-                return {"choice": "move 1", "next": self.event()}
-            return {
-                "choice": "move 1",
-                "next": {
-                    "kind": "end",
-                    "outcome": {
-                        "winner": "focal",
-                        "turns": 1,
-                        "log": ["|win|focal"],
-                        "submissions": {"p1": [], "p2": []},
-                        "simulator_substitutions": {"p1": 0, "p2": 0},
-                    },
-                },
-            }
-        if method == "call":
+            self.resolve(decision_row(self.focal, "move 1", source=source))
+            self.events.append(self.exchange() if self.count < 2 else self.end())
+            return {"accepted": True}
+        if method == "tool":
             return "Reference result"
         if method == "audit":
             return EMPTY_AUDIT
         raise AssertionError(method)
 
-    def event(self):
+    async def next_event(self):
+        return self.events.popleft()
+
+    def resolve(self, event):
+        self.rows.append(event["row"])
+        self.events.append(event)
+
+    def exchange(self):
+        self.sent += 1
+        return exchange_event(
+            self.focal,
+            self.sent,
+            turn=self.count,
+            phase="team_preview" if self.count == 0 else "turn",
+            names=("estimate_damage", "compare_action_order", "lookup_species"),
+        )
+
+    def end(self):
         return {
-            "kind": "decision",
-            "decision": self.count + 1,
-            "turn": self.count,
-            "phase": "team_preview" if self.count == 0 else "turn",
-            "error": None,
-            "prompt": "Choose index 0.",
+            "kind": "end",
+            "outcome": {
+                "winner": "focal",
+                "turns": 1,
+                "log": ["|win|focal"],
+                "simulator_substitutions": {"p1": 0, "p2": 0},
+                "decisions": {"p1": [], "p2": [], self.focal: self.rows},
+                "error": self.error,
+            },
         }
 
     async def close(self):
@@ -76,6 +97,10 @@ def install_bridge(monkeypatch, bridge):
         return bridge
 
     monkeypatch.setattr(battle.LeagueBridge, "open", open_bridge)
+
+
+def submit():
+    return ModelOutput.for_tool_call("mock", "submit_action", {"choices": [0], "rationale": "why"})
 
 
 async def test_one_reply_cannot_advance_multiple_decisions_or_read_unseen_state(
@@ -91,7 +116,7 @@ async def test_one_reply_cannot_advance_multiple_decisions_or_read_unseen_state(
         # Inspect rejects this before the tool body; it must still be counted.
         if calls == 1:
             return ModelOutput.for_tool_call("mock", "submit_action", {"choices": "invalid"})
-        output = ModelOutput.for_tool_call("mock", "submit_action", {"choices": [0]})
+        output = submit()
         output.message.tool_calls.extend(
             [
                 ToolCall(id=f"late-{calls}", function="lookup_species", arguments={}),
@@ -111,13 +136,31 @@ async def test_one_reply_cannot_advance_multiple_decisions_or_read_unseen_state(
     sample = logs[0].samples[0]
     assert sample.error is None
     assert bridge.closed and bridge.count == 2
-    assert not any(m == "call" for m, _ in bridge.requests)
+    assert not any(m == "tool" for m, _ in bridge.requests)
+    start = next(p for m, p in bridge.requests if m == "start")
+    assert start["p2"] == {
+        "name": "focal",
+        "team": sample.metadata["focal_packed"],
+        "seat": "external",
+    }
+    assert start["p1"]["seat"] == "search" and start["p1"]["name"] == "opponent"
+    assert start["policy_seed"] == start["seed"] == sample.metadata["seed"]
     submissions = [p for m, p in bridge.requests if m == "submit"]
-    assert all(p["pid"] == "p2" for p in submissions)
+    assert [(p["pid"], p["exchange"]) for p in submissions] == [("p2", 1), ("p2", 2)]
+    assert all(p["input"] == {"choices": [0], "rationale": "why"} for p in submissions)
+    assert [p["usage"]["input_tokens"] for p in submissions] == [20, 10]
     decisions = sample.store["decisions"]
     assert decisions[0]["rejected"] == 2  # Schema rejection plus duplicate submission.
     assert [d["post_submission_calls"] for d in decisions] == [2, 2]
+    assert [(d["number"], d["turn"], d["phase"]) for d in decisions] == [
+        (1, 0, "team_preview"),
+        (2, 1, "turn"),
+    ]
+    assert all(d["rationale"] == "why" for d in decisions)
     assert sample.store["completion"] == "complete"
+    assert sample.store["system_prompt"].startswith(SYSTEM + "\nEach decision allows up to 3")
+    users = [m.text for m in sample.messages if m.role == "user"]
+    assert users[:2] == [battle.SAMPLE_INPUT, "Choose index 0."]
 
 
 async def test_ablation_removes_tools_and_records_assistance(monkeypatch, tmp_path):
@@ -136,10 +179,33 @@ async def test_ablation_removes_tools_and_records_assistance(monkeypatch, tmp_pa
     )
     sample = logs[0].samples[0]
     assert sample.error is None
+    assert [p["exchange"] for m, p in bridge.requests if m == "abandon"] == [1, 2]
     assert sample.scores["outcome"].value["win"] == 1
     assert sample.scores["outcome"].value["unassisted_win"] == 0
     assert all(d["defaulted"] for d in sample.store["decisions"])
-    assert "unavailable" in sample.store["system_prompt"]
+    assert sample.store["system_prompt"].endswith(battle.NO_CALCULATORS)
+    assert [t["name"] for t in sample.store["tool_catalog"]] == ["lookup_species"]
+
+
+async def test_showdown_rejection_reopens_the_decision(monkeypatch, tmp_path):
+    bridge = FakeBridge(rejections=1)
+    install_bridge(monkeypatch, bridge)
+    logs = await eval_async(
+        battle.vgc_battle(),
+        model=offline_model(lambda *args: submit()),
+        limit=1,
+        log_dir=str(tmp_path),
+    )
+    sample = logs[0].samples[0]
+    assert sample.error is None
+    decisions = sample.store["decisions"]
+    assert [(d["number"], d["turn"], d["error"]) for d in decisions] == [
+        (1, 0, None),
+        (2, 0, REJECTION),
+        (3, 1, None),
+    ]
+    assert sample.scores["outcome"].value["showdown_rejections"] == 1
+    assert sample.scores["outcome"].value["unassisted_win"] == 1
 
 
 async def test_engine_failure_preserves_partial_trace_and_is_not_a_model_error(
@@ -147,11 +213,12 @@ async def test_engine_failure_preserves_partial_trace_and_is_not_a_model_error(
 ):
     bridge = FakeBridge(fail=True)
     install_bridge(monkeypatch, bridge)
-    model = offline_model(
-        [ModelOutput.for_tool_call("mock", "submit_action", {"choices": [0]})],
-    )
     logs = await eval_async(
-        battle.vgc_battle(), model=model, limit=1, fail_on_error=False, log_dir=str(tmp_path)
+        battle.vgc_battle(),
+        model=offline_model([submit()]),
+        limit=1,
+        fail_on_error=False,
+        log_dir=str(tmp_path),
     )
     sample = logs[0].samples[0]
     assert sample.error is not None
@@ -160,6 +227,31 @@ async def test_engine_failure_preserves_partial_trace_and_is_not_a_model_error(
     assert len(sample.store["decisions"]) == 1
     assert sample.store["decisions"][0]["rejected"] == 0
     assert sample.store["completion"] == "incomplete"
+
+
+@pytest.mark.parametrize("failure", ["harness", "opponent"])
+async def test_harness_failure_and_unknown_opponent_are_evaluation_errors(
+    monkeypatch, tmp_path, failure
+):
+    bridge = FakeBridge(error="p2 chose an action its request does not offer")
+    install_bridge(monkeypatch, bridge)
+    logs = await eval_async(
+        battle.vgc_battle(opponent="greedy" if failure == "harness" else "external"),
+        model=offline_model(lambda *args: submit()),
+        limit=1,
+        fail_on_error=False,
+        log_dir=str(tmp_path),
+    )
+    sample = logs[0].samples[0]
+    assert sample.error is not None and bridge.closed
+    assert sample.store["failure"]["type"] == "BridgeError"
+    assert sample.store["completion"] == "incomplete"
+    if failure == "harness":
+        assert "does not offer" in sample.store["failure"]["message"]
+        assert sample.store["outcome"]["winner"] == "focal"
+    else:
+        assert "greedy, search" in sample.store["failure"]["message"]
+        assert not bridge.requests
 
 
 async def test_decision_limit_is_incomplete_not_a_loss(monkeypatch, tmp_path):
@@ -184,14 +276,12 @@ async def test_decision_limit_is_incomplete_not_a_loss(monkeypatch, tmp_path):
 @pytest.mark.parametrize(
     "kwargs",
     [
-        {"sheets": "closed"},
         {"max_generations": 0},
         {"max_decisions": 0},
         {"tool_access": "other"},
         {"seeds": ""},
         {"seeds": "1,1"},
         {"focal_seat": "other"},
-        {"league_prompt": True, "tool_access": "no_calculators"},
     ],
 )
 def test_invalid_or_unsupported_experiments_fail_before_generation(kwargs):
@@ -213,8 +303,8 @@ async def test_one_eval_runs_both_arms_and_report_matches_them(monkeypatch, tmp_
     def respond(messages, tools, *args):
         calculators = "estimate_damage" in {t.name for t in tools}
         seen.add(calculators)
-        assert ("unavailable" in messages[0].text) != calculators
-        return ModelOutput.for_tool_call("mock", "submit_action", {"choices": [0]})
+        assert messages[0].text.endswith(battle.NO_CALCULATORS) != calculators
+        return submit()
 
     task = battle.vgc_battle(tool_access="both")
     # First two dataset entries are both arms of the same experimental cell.

@@ -10,7 +10,8 @@ that greedy distinguishes a weak default policy. They do not answer this questio
 
 `tool_access=both` creates each cell twice: `full` and `no_calculators`. Both keep the same
 observation, legal menus, effective-speed display, rules/stat lookups, and conversation memory.
-The prompt accurately describes the available tools. Greedy retains its calculator in both arms.
+The league prompt is the same in both arms; the `no_calculators` arm adds one line saying the two
+calculators are unavailable. The opponent policy is the same in both arms.
 Each sample starts a fresh game and model conversation.
 
 The first pilot is **120 games**: six teams × five opponents × two seats × one seed × two
@@ -23,8 +24,9 @@ engine hashes, token limit, and sample count. Use a separate two-game smoke run 
 then freeze the pilot's settings. The command is in the [README](../README.md). Do not use `--limit`
 for the comparison, change budgets halfway through, or retry individual failures/losses.
 
-Default settings are greedy, open sheets, both player seats, 24 replies per decision, and a
-200-decision cutoff. Inspect sample retries are disabled; provider HTTP retries may still occur.
+Default settings are the `search` opponent (pass `-T opponent=greedy` for the question above),
+both player seats, 24 replies per decision, and a 200-decision cutoff. Inspect sample retries are
+disabled; provider HTTP retries may still occur.
 The token limit counts the growing conversation and tool traffic. This tests the tool-access
 condition at a resource budget, including the tool descriptions, rather than pure reasoning ability.
 

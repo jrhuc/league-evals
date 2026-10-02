@@ -47,7 +47,7 @@ def fake_log(status="success", *, error=None, budget=24):
         "winner": "focal",
         "turns": 3,
         "simulator_substitutions": {"p1": 0, "p2": 0},
-        "submissions": {"p1": [], "p2": []},
+        "decisions": {"p1": [], "p2": []},
     }
     sample = NS(
         id="a--b--1",
@@ -64,7 +64,7 @@ def fake_log(status="success", *, error=None, budget=24):
     spec = NS(
         model="m",
         task="vgc_battle",
-        task_version=2,
+        task_version=3,
         task_args={"max_generations": budget},
         model_generate_config=NS(model_dump=lambda **kw: {}),
         model_args={},

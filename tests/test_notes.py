@@ -8,13 +8,14 @@ import sys
 from types import SimpleNamespace
 
 import pytest
+from fake_bridge import exchange_event
 from inspect_ai import eval_async
 from inspect_ai.model import ChatMessageAssistant, ModelOutput
 from inspect_ai.scorer import Target
 from inspect_ai.tool import ToolCall
 from mock_model import offline_model
 from test_bridge import needs_harness
-from test_positions import FakeBridge, dataset
+from test_positions import FakeBridge, dataset, record_default_game, resolved_action
 
 from league_evals import note, notes, position, positions
 from league_evals.battle import load_pool
@@ -32,21 +33,15 @@ def damage_text(
     defender="Passimian",
 ):
     return (
-        "Damage estimate\n"
+        f"Live battle and known team-sheet state applied: attacker {attacker} (Defiant); defender {defender} (Receiver).\n"
         f"{attacker} {move} (Steel Physical BP 80) into {defender}: {lo}-{hi}% of maximum HP before survival effects."
         + (f" Target HP shown: {hp}%." if hp is not None else "")
-        + f" {outcome} Hit outcomes assume a hit."
+        + f" {outcome} Hit outcomes assume the selected hits connect; endpoints do not establish exhaustive KO certainty."
     )
 
 
-def event():
+def view():
     return {
-        "kind": "decision",
-        "phase": "turn",
-        "turn": 2,
-        "decision": 1,
-        "error": None,
-        "prompt": "Choose your actions.",
         "slot_names": ["Kingambit", "Gengar"],
         "menus": [
             [
@@ -77,13 +72,24 @@ def event():
     }
 
 
+def event(pid="p1"):
+    return exchange_event(
+        pid,
+        1,
+        turn=2,
+        prompt="Choose your actions.",
+        view=view(),
+        names=("lookup_species", "estimate_damage", "compare_action_order"),
+    )
+
+
 def claim():
     true_line = "Kingambit Iron Head -> Passimian 53.2-57.1%"
     false_line = "Kingambit Iron Head -> Passimian 106.4-114.2% (KO)"
     context = "Kingambit Sucker Punch -> Passimian 20-30%"
     return {
         "position": dataset()["positions"][0]["id"],
-        **notes.candidates(event())[0],
+        **notes.candidates(view())[0],
         "lo": 53.2,
         "hi": 57.1,
         "hp": 100,
@@ -139,8 +145,22 @@ def test_parse_damage_fainted_and_invalid():
         assert notes.parse_damage(text) is None
 
 
+def test_parse_damage_reads_the_acting_first_range_when_turn_order_matters():
+    later = (
+        "No OHKO at either evaluated endpoint. Turn order matters: that range is Kingambit "
+        "acting before Passimian; acting after every other Pokémon this turn it is 106.4-114.2% "
+        "(BP 160). OHKO at both evaluated endpoints."
+    )
+    assert notes.parse_damage(damage_text(outcome=later)) == {
+        "lo": 53.2,
+        "hi": 57.1,
+        "hp": 100,
+        "outcome": "none",
+    }
+
+
 def test_candidates_indices_and_exclusions():
-    found = notes.candidates(event())
+    found = notes.candidates(view())
     assert [(c["slot"], c["move"], c["foe"], c["follow_part"]) for c in found] == [
         (0, "Iron Head", 2, "move 2 +2"),
         (0, "Iron Head", 1, "move 2 +1"),
@@ -154,7 +174,7 @@ def test_candidates_indices_and_exclusions():
 
 @pytest.mark.parametrize("mirror", ["ally", "foe", "two_foes", "suffix"])
 def test_mirror_species(mirror):
-    observation = event()
+    observation = view()
     if mirror == "ally":
         observation["slot_names"][1] = "Kingambit"
     elif mirror == "foe":
@@ -163,6 +183,7 @@ def test_mirror_species(mirror):
         observation["menus"][0][2] = "Iron Head -> foe 1 (Passimian)"
     else:
         observation["menus"][0].append("Iron Head -> foe 1 (Gengar) + Mega Evolve")
+    assert notes.ambiguous_species(observation)
     assert notes.candidates(observation) == []
 
 
@@ -173,10 +194,7 @@ class CalculatorBridge(FakeBridge):
         self.observation = observation or event()
 
     async def request(self, method, params=None):
-        if method == "start":
-            self.requests.append((method, params))
-            return copy.deepcopy(self.observation)
-        if method == "call":
+        if method == "tool":
             self.requests.append((method, params))
             result = self.result(params) if callable(self.result) else self.result
             if isinstance(result, Exception):
@@ -184,11 +202,16 @@ class CalculatorBridge(FakeBridge):
             return result
         return await super().request(method, params)
 
+    def exchange(self):
+        return {**copy.deepcopy(self.observation), "pid": self.focal}
+
 
 async def test_selection_ties_and_text():
     bridge = CalculatorBridge()
-    selected = await notes.select_claim(bridge, "p1", event())
-    assert len(bridge.requests) == 4
+    selected = await notes.select_claim(bridge, event())
+    assert [(m, p["pid"], p["exchange"], p["name"]) for m, p in bridge.requests] == [
+        ("tool", "p1", 1, "estimate_damage")
+    ] * 4
     assert selected["follow_part"] == "move 2 +1"
     assert selected["slot"] == 0
     assert selected["factor"] == 2.0
@@ -196,8 +219,8 @@ async def test_selection_ties_and_text():
     assert selected["evidence"] == damage_text().splitlines()[1]
     assert set(selected) == set(claim()) - {"position"}
     reversed_menus = event()
-    reversed_menus["menus"] = [list(reversed(menu)) for menu in reversed_menus["menus"]]
-    assert await notes.select_claim(CalculatorBridge(), "p1", reversed_menus) == selected
+    reversed_menus["decision"]["menus"] = [list(reversed(menu)) for menu in view()["menus"]]
+    assert await notes.select_claim(CalculatorBridge(), reversed_menus) == selected
     true_lines = selected["true_text"].removeprefix("Damage calcs this turn: ")[:-1].split("; ")
     assert true_lines == sorted(true_lines)
 
@@ -215,7 +238,7 @@ async def test_selection_ties_and_text():
 )
 async def test_selection_eligibility(lo, hi, hp, outcome, eligible):
     selected = await notes.select_claim(
-        CalculatorBridge(damage_text(lo=lo, hi=hi, hp=hp, outcome=outcome)), "p1", event()
+        CalculatorBridge(damage_text(lo=lo, hi=hi, hp=hp, outcome=outcome)), event()
     )
     assert bool(selected) == eligible
     if selected:
@@ -224,13 +247,13 @@ async def test_selection_eligibility(lo, hi, hp, outcome, eligible):
 
 @pytest.mark.parametrize("result", ["Unknown move", BridgeRejected("bad")])
 async def test_selection_unparsed_and_rejected(result):
-    assert await notes.select_claim(CalculatorBridge(result), "p1", event()) is None
+    assert await notes.select_claim(CalculatorBridge(result), event()) is None
 
 
 async def test_selection_single_line_formatting():
     observation = event()
-    observation["menus"] = [["Iron Head -> foe 2 (Passimian)"], []]
-    selected = await notes.select_claim(CalculatorBridge(damage_text(hi="96")), "p1", observation)
+    observation["decision"]["menus"] = [["Iron Head -> foe 2 (Passimian)"], []]
+    selected = await notes.select_claim(CalculatorBridge(damage_text(hi="96")), observation)
     assert selected["context_lines"] == []
     assert selected["claim_line_false"] == "Kingambit Iron Head -> Passimian 106.4-192% (KO)"
     assert (
@@ -245,7 +268,7 @@ async def test_selection_single_line_formatting():
 
 async def test_context_choice_tags_and_body_order():
     observation = event()
-    observation["menus"][1] += [
+    observation["decision"]["menus"][1] += [
         "Shadow Ball -> foe 1 (Dragonite)",
         "Protect -> foe 1 (Dragonite)",
         "Protect -> foe 2 (Passimian)",
@@ -265,7 +288,7 @@ async def test_context_choice_tags_and_body_order():
             return damage_text(lo="100.00", hi="150.0", outcome="OHKO at both evaluated endpoints.")
         return damage_text(lo="40.00", hi="110", outcome="OHKO at one evaluated endpoint only.")
 
-    selected = await notes.select_claim(CalculatorBridge(result), "p1", observation)
+    selected = await notes.select_claim(CalculatorBridge(result), observation)
     context = [
         "Kingambit Iron Head -> Dragonite 100.00-150.0% (KO)",
         "Kingambit Sucker Punch -> Passimian 40.00-110% (KO on a high roll)",
@@ -294,7 +317,9 @@ async def test_selection_largest_hi_before_slot():
             lo="50", hi="60" if params["arguments"]["move"] == "Shadow Ball" else "50"
         )
 
-    selected = await notes.select_claim(CalculatorBridge(result), "p2", event())
+    bridge = CalculatorBridge(result)
+    selected = await notes.select_claim(bridge, event("p2"))
+    assert {p["pid"] for _, p in bridge.requests} == {"p2"}
     assert selected["slot"] == 1
     assert selected["move"] == "Shadow Ball"
 
@@ -387,14 +412,14 @@ async def test_build_concurrency_skips_and_resume(monkeypatch):
             await asyncio.sleep(0)
             return await super().request(method, params)
 
-    async def open_bridge(format, sheets):
+    async def open_bridge(format):
         nonlocal active, peak
-        assert (format, sheets) == ("test", "open")
+        assert format == "test"
         active += 1
         peak = max(peak, active)
         observation = event()
         if len(bridges) == 0:
-            observation["slot_names"][0] = "Passimian"
+            observation["decision"]["slot_names"][0] = "Passimian"
         bridge = BuildBridge(
             observation=observation, result="Unknown move" if len(bridges) == 1 else None
         )
@@ -413,14 +438,12 @@ async def test_build_concurrency_skips_and_resume(monkeypatch):
         assert bridge.closed
         start = next(p for m, p in bridge.requests if m == "start")
         assert start == {
-            "format": "test",
             "seed": [1, 2, 3, 4],
-            "p2": {"name": "focal", "team": "two"},
-            "p1": {"name": "opponent", "team": "one"},
-            "external": ["p2"],
-            "opponent": "greedy",
+            "p2": {"name": "focal", "team": "two", "seat": "external"},
+            "p1": {"name": "opponent", "team": "one", "seat": "greedy"},
             "script": {"p1": ["team 1234", "greedy"], "p2": ["team 1234", "other"]},
         }
+        assert all(p["pid"] == "p2" for m, p in bridge.requests if m == "tool")
     with pytest.raises(ValueError, match="positive"):
         await notes.build_notes("test", "built", jobs=0)
 
@@ -432,7 +455,7 @@ async def test_build_closes_on_failure(monkeypatch, failure):
     if failure == "provenance":
         bridge.hello = {}
     elif failure == "event":
-        bridge.observation["turn"] = 99
+        bridge.observation["decision"]["turn"] = 99
 
     async def open_bridge(*args):
         return bridge
@@ -545,7 +568,7 @@ async def test_solver_scorers_and_prompt(monkeypatch, tmp_path, mode, verified, 
         assert sample.scores["position_regret"].value["regret"] == pytest.approx(0.4)
         users = [m.text for m in sample.messages if m.role == "user"]
         meta = sample.metadata["note"]
-        expected = event()["prompt"]
+        expected = event()["exchange"]["prompt"]
         if meta["truth"] != "control":
             expected += notes.note_block("own", meta["text"])
         assert users[1] == expected
@@ -708,65 +731,29 @@ def test_report_missing_arm_and_no_pairs(monkeypatch, tmp_path):
 
 @needs_harness
 async def test_real_note_candidate_choice_and_damage():
-    pool = load_pool("test")
-    seed = [1, 2, 3, 4]
-    players = {
-        pid: {"name": f"{pid}-default", "team": pool["teams"][i]["packed"]}
-        for i, pid in enumerate(("p1", "p2"))
-    }
-    bridge = await LeagueBridge.open(pool["format"], "open")
-    counts = {"p1": 0, "p2": 0}
-    turns = []
-    try:
-        observation = await bridge.request(
-            "start", {"format": pool["format"], "seed": seed, **players, "external": ["p1", "p2"]}
-        )
-        while observation["kind"] == "decision":
-            pid = observation["pid"]
-            if pid == "p1" and observation["phase"] == "turn" and notes.candidates(observation):
-                turns.append(
-                    {
-                        "focal": pid,
-                        "choice_index": counts[pid],
-                        "opponent_choice_index": counts["p2"],
-                        "turn": observation["turn"],
-                    }
-                )
-            counts[pid] += 1
-            reply = await bridge.request("submit", {"pid": pid, "choices": "default"})
-            observation = reply["next"]
-        outcome = observation["outcome"]
-    finally:
-        await bridge.close()
-    source = {
-        "format": pool["format"],
-        "seed": seed,
-        "names": {pid: p["name"] for pid, p in players.items()},
-        "packed": {pid: p["team"] for pid, p in players.items()},
-        "choices": {
-            pid: [s["choice"] for s in outcome["submissions"][pid] if s["outcome"] == "accepted"]
-            for pid in players
-        },
-    }
-    assert turns and turns[-1]["turn"] > 1
+    recorded, indices = await record_default_game(
+        load_pool("test"), [1, 2, 3, 4], lambda view: bool(notes.candidates(view))
+    )
     rows = positions.value_games(
-        [{"id": "real", "source": source, "log": outcome["log"]}],
+        [recorded],
         {"samples": 2, "epsilon": 0.25, "maxTurns": 40, "salt": 12},
         1,
-        only={"real": [{"pid": "p1", "choice_index": turns[-1]["choice_index"]}]},
+        only={"real": [{"pid": "p1", "choice_index": indices[-1]}]},
     )
     assert next(r for r in rows if r["kind"] == "game")["verified"]
     (table,) = [r for r in rows if r["kind"] == "position"]
     assert table["turn"] > 1
-    bridge = await LeagueBridge.open(pool["format"], "open")
+    bridge = await LeagueBridge.open(recorded["source"]["format"])
     try:
-        observation = await position.resume_position(bridge, source, table)
+        event = await position.resume_position(bridge, recorded["source"], table)
+        view, exchange = event["decision"], event["exchange"]["id"]
         chosen = None
-        for candidate in notes.candidates(observation):
+        for candidate in notes.candidates(view):
             text = await bridge.request(
-                "call",
+                "tool",
                 {
                     "pid": "p1",
+                    "exchange": exchange,
                     "name": "estimate_damage",
                     "arguments": {k: candidate[k] for k in ("attacker", "defender", "move")},
                 },
@@ -775,10 +762,24 @@ async def test_real_note_candidate_choice_and_damage():
                 chosen = candidate
                 break
         assert chosen is not None
+        assert notes.DAMAGE.search(text)[0].startswith(f"{chosen['attacker']} {chosen['move']} (")
+        state = SimpleNamespace(
+            metadata={"note": {"claim": chosen}},
+            store={
+                "position_choice": None,
+                "decisions": [
+                    {"defaulted": False, "trace": [{"name": "estimate_damage", "result": text}]}
+                ],
+            },
+        )
+        assert (await note_trust()(state, Target(""))).value["verified"] == 1
         label = f"{chosen['move']} -> foe {chosen['foe']} ({chosen['defender']})"
-        choices = [0] * len(observation["menus"])
-        choices[chosen["slot"]] = observation["menus"][chosen["slot"]].index(label)
-        reply = await bridge.request("submit", {"pid": "p1", "choices": choices})
-        assert reply["choice"].split(", ")[chosen["slot"]] == chosen["follow_part"]
+        choices = [0] * len(view["menus"])
+        choices[chosen["slot"]] = view["menus"][chosen["slot"]].index(label)
+        await bridge.request(
+            "submit", {"pid": "p1", "exchange": exchange, "input": {"choices": choices}}
+        )
+        action = await resolved_action(bridge, "p1")
+        assert action.split(", ")[chosen["slot"]] == chosen["follow_part"]
     finally:
         await bridge.close()

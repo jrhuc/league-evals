@@ -8,22 +8,29 @@ from league_evals.scorers import (
 )
 
 
+def row(source="model", outcome="accepted"):
+    return {"kind": "decision", "submission_source": source, "outcome": outcome}
+
+
 def test_outcome_summary_counts_focal_win_and_rejections():
     outcome = {
         "winner": "focal",
         "turns": 9,
         "simulator_substitutions": {"p1": 0, "p2": 0},
-        "submissions": {
+        "decisions": {
             "p1": [
-                {"outcome": "accepted"},
-                {"outcome": "rejected"},
-                {"outcome": "accepted"},
+                row(),
+                row(outcome="rejected"),
+                row(),
+                row("automatic"),
+                {"kind": "game_reflection"},
             ],
             "p2": [],
         },
     }
     summary = outcome_summary(outcome)
     assert summary["win"] == 1.0
+    assert summary["unassisted_win"] == 1.0
     assert summary["turns"] == 9
     assert summary["showdown_rejections"] == 1
 
@@ -93,14 +100,18 @@ def test_p2_substitutions_and_assisted_wins_are_not_credited_as_unassisted():
         "winner": "focal",
         "turns": 3,
         "simulator_substitutions": {"p1": 0, "p2": 1},
-        "submissions": {"p1": [], "p2": [{"outcome": "accepted", "source": "model"}]},
+        "decisions": {"p1": [row()], "p2": [row()]},
     }
     summary = outcome_summary(result, "p2")
     assert summary["win"] == 1
     assert summary["unassisted_win"] == 0
     assert summary["assisted"] == 1
     assert summary["simulator_substitutions"] == 1
+    assert outcome_summary(result, "p1")["unassisted_win"] == 1
     assert outcome_summary(result, "p1", defaulted=True)["unassisted_win"] == 0
+    for source in ("model-default", "simulator-default", "timer-default"):
+        result["decisions"]["p1"] = [row(), row(source)]
+        assert outcome_summary(result, "p1")["unassisted_win"] == 0
 
 
 def test_multiple_findings_per_match_are_diagnostic_density_not_probability():

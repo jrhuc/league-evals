@@ -2,9 +2,12 @@ import copy
 import json
 import math
 import sqlite3
+import sys
+from collections import deque
 from dataclasses import dataclass, field
 
 import pytest
+from fake_bridge import SEATS, decision_row, exchange_event, external
 from inspect_ai import eval_async
 from inspect_ai.model import ModelOutput
 from mock_model import offline_model
@@ -12,7 +15,7 @@ from test_bridge import needs_harness
 
 from league_evals import position, positions
 from league_evals.battle import load_pool
-from league_evals.bridge import BridgeError, LeagueBridge
+from league_evals.bridge import FORMAT, BridgeError, LeagueBridge, request_sync
 
 
 def action(command, value, explored=None):
@@ -253,41 +256,47 @@ class FakeBridge:
     choice: str = "a"
     unexpected: bool = False
     fail: bool = False
+    rejections: int = 0
+    turn: int = 2
     count: int = 0
+    sent: int = 0
     closed: bool = False
+    focal: str = "p1"
     requests: list = field(default_factory=list)
-    hello: dict = field(default_factory=lambda: dataset()["provenance"])
+    events: deque = field(default_factory=deque)
+    hello: dict = field(default_factory=lambda: {**dataset()["provenance"], "seats": SEATS})
 
     async def request(self, method, params=None):
         self.requests.append((method, params))
-        if method == "tools":
-            return [
-                {
-                    "name": n,
-                    "description": "Reference lookup.",
-                    "parameters": {"type": "object", "properties": {}},
-                }
-                for n in ("lookup_species", "estimate_damage", "compare_action_order")
-            ]
         if method == "start":
-            return (
-                {"kind": "end"}
-                if self.unexpected
-                else {
-                    "kind": "decision",
-                    "phase": "turn",
-                    "turn": 2,
-                    "decision": 1,
-                    "error": None,
-                    "prompt": "Choose index 0.",
-                }
-            )
-        if method == "submit":
+            self.focal = external(params)
+            end = {"kind": "end", "outcome": {"error": "recorded choice was rejected"}}
+            self.events.append(end if self.unexpected else self.exchange())
+            return {"started": True}
+        if method in ("submit", "abandon"):
             if self.fail:
                 raise BridgeError("transport failed")
             self.count += 1
-            return {"choice": self.choice, "next": {"kind": "decision"}}
+            source = "model" if method == "submit" else "model-default"
+            outcome = "rejected" if self.count <= self.rejections else "accepted"
+            self.events.append(
+                decision_row(self.focal, self.choice, source=source, outcome=outcome)
+            )
+            self.events.append(self.exchange())
+            return {"accepted": True}
         raise AssertionError(method)
+
+    async def next_event(self):
+        return self.events.popleft()
+
+    def exchange(self):
+        self.sent += 1
+        return exchange_event(
+            self.focal,
+            self.sent,
+            turn=self.turn,
+            names=("lookup_species", "estimate_damage", "compare_action_order"),
+        )
 
     async def close(self):
         self.closed = True
@@ -321,8 +330,12 @@ async def test_solver_one_decision_and_report(monkeypatch, tmp_path, defaulted):
     assert sample.error is None
     assert bridge.count == 1 and bridge.closed
     start = next(p for m, p in bridge.requests if m == "start")
-    assert start["script"] == {pid: game()["source"]["choices"][pid][:2] for pid in ("p1", "p2")}
-    assert start["p1"]["name"] == "focal" and start["p2"]["name"] == "opponent"
+    assert start == {
+        "seed": [1, 2, 3, 4],
+        "p1": {"name": "focal", "team": "one", "seat": "external"},
+        "p2": {"name": "opponent", "team": "two", "seat": "greedy"},
+        "script": {pid: game()["source"]["choices"][pid][:2] for pid in ("p1", "p2")},
+    }
     assert sample.store["position_choice"] == "a"
     assert sample.store["completion"] == "complete"
     assert len(sample.store["decisions"]) == 1
@@ -337,9 +350,28 @@ async def test_solver_one_decision_and_report(monkeypatch, tmp_path, defaulted):
     assert "coarse estimate" in positions.report_table(result)
 
 
-@pytest.mark.parametrize("failure", ["event", "submit", "provenance"])
+async def test_solver_replays_a_decision_showdown_rejected(monkeypatch, tmp_path):
+    bridge = FakeBridge(rejections=1)
+    install(monkeypatch, bridge)
+    submit = lambda *args: ModelOutput.for_tool_call("mock", "submit_action", {"choices": [0]})
+    logs = await eval_async(
+        position.vgc_position(positions="test"), model=offline_model(submit), log_dir=str(tmp_path)
+    )
+    sample = logs[0].samples[0]
+    assert sample.error is None
+    assert bridge.count == 2 and bridge.closed
+    assert sample.store["position_choice"] == "a"
+    assert [(d["number"], d["error"]) for d in sample.store["decisions"]] == [
+        (1, None),
+        (2, "rejected"),
+    ]
+
+
+@pytest.mark.parametrize("failure", ["event", "turn", "submit", "provenance"])
 async def test_solver_errors_preserve_trace(monkeypatch, tmp_path, failure):
-    bridge = FakeBridge(unexpected=failure == "event", fail=failure == "submit")
+    bridge = FakeBridge(
+        unexpected=failure == "event", fail=failure == "submit", turn=3 if failure == "turn" else 2
+    )
     if failure == "provenance":
         bridge.hello = {"harness_commit": "wrong"}
     install(monkeypatch, bridge)
@@ -355,6 +387,8 @@ async def test_solver_errors_preserve_trace(monkeypatch, tmp_path, failure):
     assert sample.store["completion"] == "incomplete"
     assert sample.store["failure"]["type"] == "BridgeError"
     assert bridge.count == 0
+    if failure == "event":
+        assert "recorded choice was rejected" in sample.store["failure"]["message"]
 
 
 @pytest.mark.parametrize("accepted", [True, False])
@@ -411,49 +445,60 @@ def test_task_conditions_hidden_and_validation(monkeypatch):
             position.vgc_position(**kwargs)
 
 
-@needs_harness
-async def test_real_position_values_and_script():
-    pool = load_pool("test")
-    seed = [1, 2, 3, 4]
+async def record_default_game(pool, seed, keep=lambda view: True):
     players = {
-        pid: {"name": f"{pid}-default", "team": pool["teams"][i]["packed"]}
+        pid: {"name": f"{pid}-default", "team": pool["teams"][i]["packed"], "seat": "external"}
         for i, pid in enumerate(("p1", "p2"))
     }
     bridge = await LeagueBridge.open(pool["format"])
-    counts = {"p1": 0, "p2": 0}
-    turns = []
+    accepted = 0
+    indices = []
     try:
-        event = await bridge.request(
-            "start", {"format": pool["format"], "seed": seed, **players, "external": ["p1", "p2"]}
-        )
-        while event["kind"] == "decision":
+        await bridge.request("start", {"seed": seed, **players})
+        while (event := await bridge.next_event())["kind"] != "end":
             pid = event["pid"]
-            if pid == "p1" and event["phase"] == "turn":
-                turns.append(counts[pid])
-            counts[pid] += 1
-            reply = await bridge.request("submit", {"pid": pid, "choices": "default"})
-            event = reply["next"]
+            if event["kind"] == "decision":
+                accepted += pid == "p1" and event["row"]["outcome"] == "accepted"
+                continue
+            view = event["decision"]
+            if pid == "p1" and view["phase"] == "turn" and keep(view):
+                indices.append(accepted)
+            await bridge.request("abandon", {"pid": pid, "exchange": event["exchange"]["id"]})
         outcome = event["outcome"]
     finally:
         await bridge.close()
+    assert outcome["error"] is None
     source = {
         "format": pool["format"],
         "seed": seed,
         "names": {pid: p["name"] for pid, p in players.items()},
         "packed": {pid: p["team"] for pid, p in players.items()},
         "choices": {
-            pid: [s["choice"] for s in outcome["submissions"][pid] if s["outcome"] == "accepted"]
+            pid: [r["action"] for r in outcome["decisions"][pid] if r["outcome"] == "accepted"]
             for pid in players
         },
     }
-    recorded = {"id": "real", "source": source, "log": outcome["log"]}
-    index = turns[-1]
+    return {"id": "real", "source": source, "log": outcome["log"]}, indices
+
+
+async def resolved_action(bridge, pid):
+    while (event := await bridge.next_event())["kind"] != "decision" or event["pid"] != pid:
+        assert event["kind"] != "end"
+    assert event["row"]["outcome"] == "accepted"
+    return event["row"]["action"]
+
+
+@needs_harness
+async def test_real_position_values_and_script():
+    recorded, indices = await record_default_game(load_pool("test"), [1, 2, 3, 4])
+    index = indices[-1]
     settings = {"samples": 2, "epsilon": 0.25, "maxTurns": 40, "salt": 12}
     rows = positions.value_games(
         [recorded], settings, 1, only={"real": [{"pid": "p1", "choice_index": index}]}
     )
     assert next(r for r in rows if r["kind"] == "game")["verified"]
     (table,) = [r for r in rows if r["kind"] == "position"]
+    assert table["turn"] > 1
     command = table["actions"][0]["command"]
     restricted = positions.value_games(
         [recorded],
@@ -463,31 +508,38 @@ async def test_real_position_values_and_script():
     )
     (single,) = [r for r in restricted if r["kind"] == "position"]
     assert single["actions"] == [table["actions"][0]]
-    bridge = await LeagueBridge.open(pool["format"])
+    bridge = await LeagueBridge.open(recorded["source"]["format"])
     try:
-        event = await bridge.request(
-            "start",
-            {
-                "format": pool["format"],
-                "seed": seed,
-                **players,
-                "external": ["p1"],
-                "script": {
-                    "p1": source["choices"]["p1"][:index],
-                    "p2": source["choices"]["p2"][: table["opponent_choice_index"]],
-                },
-            },
-        )
-        assert (event["kind"], event["phase"], event["turn"], event["decision"]) == (
-            "decision",
-            "turn",
-            table["turn"],
-            1,
-        )
-        reply = await bridge.request("submit", {"pid": "p1", "choices": "default"})
-        assert reply["choice"] in {a["command"] for a in table["actions"]}
+        event = await position.resume_position(bridge, recorded["source"], table)
+        assert event["decision"]["turn"] == table["turn"]
+        await bridge.request("abandon", {"pid": "p1", "exchange": event["exchange"]["id"]})
+        assert await resolved_action(bridge, "p1") in {a["command"] for a in table["actions"]}
     finally:
         await bridge.close()
+    bridge = await LeagueBridge.open(recorded["source"]["format"])
+    try:
+        with pytest.raises(BridgeError, match="unexpected first position event"):
+            await position.resume_position(bridge, recorded["source"], {**table, "turn": 99})
+    finally:
+        await bridge.close()
+
+
+@needs_harness
+async def test_real_league_decision_resumes_through_the_task(monkeypatch, tmp_path):
+    (hello,) = request_sync([("open", {"format": FORMAT})])
+    data = positions.load_positions("league")
+    data = {**data, "provenance": hello, "positions": data["positions"][:1]}
+    monkeypatch.setattr(position, "load_positions", lambda name: data)
+    logs = await eval_async(
+        position.vgc_position(max_generations=1), model=offline_model(), log_dir=str(tmp_path)
+    )
+    sample = logs[0].samples[0]
+    assert sample.error is None
+    (decision,) = sample.store["decisions"]
+    assert (decision["turn"], decision["phase"]) == (data["positions"][0]["turn"], "turn")
+    assert decision["defaulted"]
+    assert sample.scores["position_regret"].value["scored"] == 1
+    assert data["positions"][0]["recorded"]["model"] not in "".join(m.text for m in sample.messages)
 
 
 def test_build_passes_selection_counts_and_unverified(monkeypatch, tmp_path):
@@ -526,9 +578,72 @@ def test_build_passes_selection_counts_and_unverified(monkeypatch, tmp_path):
     assert data["provenance"]["source_sha256"] == "hash"
 
 
-def test_loader_and_build_refuses_overwrite(monkeypatch, tmp_path):
-    import sys
+def test_verify_recomputes_stored_values_and_restamps_only_when_clean(
+    monkeypatch, tmp_path, capsys
+):
+    monkeypatch.setattr(positions, "DATA", tmp_path)
+    data = dataset()
+    path = tmp_path / "test.json"
+    path.write_text(json.dumps(data, indent=1) + "\n")
+    stored = path.read_text()
+    calls = []
+    drift = 0.0
+    missing = False
 
+    def value(games, settings, jobs, only):
+        calls.append((games, settings, jobs, only))
+        actions = [
+            action(command, entry["value"] + drift, entry["explored"])
+            for command, entry in data["positions"][0]["values"].items()
+        ]
+        table = {"kind": "position", "id": "g-1", "focal": "p1", "choice_index": 2}
+        return [{"kind": "game", "id": "g-1", "verified": not missing}] + (
+            [] if missing else [{**table, "actions": actions}]
+        )
+
+    monkeypatch.setattr(positions, "value_games", value)
+    monkeypatch.setattr(
+        positions,
+        "request_sync",
+        lambda requests: [{"harness_commit": "new", "showdown_commit": "s"}],
+    )
+    monkeypatch.setattr(positions, "engine_provenance", lambda path: {"source_sha256": "hash"})
+    monkeypatch.setattr(sys, "argv", ["positions", "verify", "test", "--jobs", "3"])
+    positions.main()
+    assert "positions: 1; values compared: 4; mismatches: 0" in capsys.readouterr().out
+    assert path.read_text() == stored
+    assert calls == [
+        (
+            [game()],
+            {"samples": 24, "epsilon": 0.25, "maxTurns": 40, "salt": 13},
+            3,
+            {
+                "g-1": [
+                    {"pid": "p1", "choice_index": 2, "commands": ["greedy", "recorded", "a", "b"]}
+                ]
+            },
+        )
+    ]
+    monkeypatch.setattr(sys, "argv", ["positions", "verify", "test", "--restamp"])
+    for drift, missing in ((1e-9, False), (0.0, True)):
+        with pytest.raises(SystemExit):
+            positions.main()
+        assert "mismatches: 4" in capsys.readouterr().out
+        assert path.read_text() == stored
+    missing = False
+    positions.main()
+    restamped = json.loads(path.read_text())
+    assert restamped.pop("provenance") == {
+        "harness_commit": "new",
+        "showdown_commit": "s",
+        "source_sha256": "hash",
+        "revalued": {"from": "h", "values": 4},
+    }
+    assert restamped == {k: v for k, v in data.items() if k != "provenance"}
+    assert list(json.loads(path.read_text())) == list(data)
+
+
+def test_loader_and_build_refuses_overwrite(monkeypatch, tmp_path):
     monkeypatch.setattr(positions, "DATA", tmp_path)
     for name in ("", "..", "../other", "/tmp/other"):
         with pytest.raises(ValueError):

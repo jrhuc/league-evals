@@ -1,8 +1,10 @@
-import hashlib
 import json
+import subprocess
 from pathlib import Path
 
-from league_evals.provenance import engine_provenance
+import pytest
+
+from league_evals.provenance import engine_provenance, write_build_manifest
 
 
 def test_build_manifest_detects_source_and_runtime_drift(tmp_path):
@@ -26,11 +28,38 @@ def test_build_manifest_detects_source_and_runtime_drift(tmp_path):
     assert changed["runtime_sha256"] != original["runtime_sha256"]
 
 
-def test_checked_in_engine_patch_matches_lock():
+def test_engine_lock_pins_a_commit_and_its_source():
     root = Path(__file__).resolve().parents[1]
     lock = json.loads((root / "engine.lock.json").read_text())
-    assert len(lock["commit"]) == 40
-    assert (
-        hashlib.sha256((root / lock["patch"]["path"]).read_bytes()).hexdigest()
-        == lock["patch"]["sha256"]
-    )
+    assert set(lock) == {"repository", "commit", "source_sha256"}
+    assert len(lock["commit"]) == 40 and len(lock["source_sha256"]) == 64
+
+
+def test_build_manifest_requires_the_locked_commit_and_source(tmp_path):
+    engine = tmp_path / "packages/league"
+    for name in ("src/cli.ts", "dist/src/cli.js", "pokemon-showdown/dist/sim/index.js"):
+        path = engine / name
+        path.parent.mkdir(parents=True)
+        path.write_text(name)
+    for command in (["init", "-q"], ["add", "."], ["commit", "-qm", "engine"]):
+        subprocess.run(
+            ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
+            + command,
+            cwd=tmp_path,
+            check=True,
+        )
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=tmp_path, text=True).strip()
+    source = engine_provenance(engine)["source_sha256"]
+    lock = tmp_path / "engine.lock.json"
+    for commit, digest in (("0" * 40, source), (head, "0" * 64)):
+        lock.write_text(json.dumps({"commit": commit, "source_sha256": digest}))
+        with pytest.raises(ValueError, match="engine.lock.json"):
+            write_build_manifest(engine, lock)
+    lock.write_text(json.dumps({"commit": head, "source_sha256": source}))
+    write_build_manifest(engine, lock)
+    assert engine_provenance(engine)["build_verified"]
+    assert set(json.loads((engine / "eval-build.json").read_text())) == {
+        "source_sha256",
+        "runtime_sha256",
+        "showdown_runtime_sha256",
+    }

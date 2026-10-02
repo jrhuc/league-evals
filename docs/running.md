@@ -2,10 +2,11 @@
 
 ## Engine and installation
 
-Run the [README setup](../README.md) from a checkout. It builds the upstream commit and
-checksum-verified patch in [engine.lock.json](../engine.lock.json), checks the patched source,
-and writes a local build manifest. No global `vp` CLI is needed. An isolated network install
-and real-engine integration tests have been exercised locally; CI repeats the build on Linux.
+Run the [README setup](../README.md) from a checkout. It builds the upstream commit pinned in
+[engine.lock.json](../engine.lock.json), checks its source hash, and writes a local build
+manifest. The tasks drive the harness's own `bridge` and `positions` commands; nothing is patched.
+No global `vp` CLI is needed. An isolated network install and real-engine integration tests have
+been exercised locally; CI repeats the build on Linux.
 
 `LEAGUE_DIR` selects another built `packages/league` checkout. Samples record source, compiled
 JavaScript, and compiled Showdown fingerprints. `build_verified` indicates that those bytes match
@@ -23,13 +24,25 @@ engine build/integration job. Packaged wheels include the team pool; an installe
 | --- | --- | --- |
 | `pool` | `test` | Packed team artifact |
 | `seeds` | `1` | Unique comma-separated simulator/opponent seeds |
-| `opponent` | `greedy` | Fixed damage policy or seeded `random` |
+| `opponent` | `search` | A fixed policy seat of the bridge; see below |
 | `focal_seat` | `both` | `p1`, `p2`, or balanced seats |
 | `tool_access` | `full` | `full`, `no_calculators`, or `both` for a matched experiment |
 | `max_generations` | `24` | Replies per decision; warnings at 3 and 1 remaining |
 | `max_decisions` | `200` | Cutoff; unfinished games stay incomplete |
-| `sheets` | `open` | Only supported setting; the format reveals sheets |
-| `league_prompt` | `false` | Parent-league prompt; requires `full` and is a different condition |
+
+| Opponent | Plays |
+| --- | --- |
+| `random` | A uniformly random legal action |
+| `greedy` | The highest projected damage for each active Pokémon; never switches by choice |
+| `search:fast`, `search` (`search:standard`), `search:deep` | The equilibrium of a payoff matrix filled by greedy rollouts; deeper levels take longer, up to about 30 seconds a turn |
+
+`greedy` and `search` play from the live simulator, so they know the model's bench and exact stats.
+They never see the model's choice for the current decision.
+
+The model sits in the league's own battle coach: the system prompt, each decision prompt, the tools,
+the notebook, and the `submit_action` schema and validation all come from the harness. The task adds
+one line to the system prompt stating the reply budget, and in `no_calculators` one more saying the
+two calculators are unavailable and that instructions mentioning them do not apply.
 
 Each seed creates 60 games for one tool condition or 120 for both. `--epochs` repeats the full
 matrix with fresh provider generations; it does not supply a provider sampling seed. `--limit`
@@ -39,8 +52,9 @@ reserves each in-flight request's worst-case cost against the account balance; w
 lower `--max-connections` or runs stop on `402 in_flight_budget_exhausted`.
 
 A reply-budget timeout plays a logged default. Decision/sample limits produce incomplete records.
-Model-correctable tool errors can be retried within the decision. Bridge timeouts, malformed
-responses, and simulator failures produce sample errors with partial traces.
+Model-correctable tool errors and refused submissions can be retried within the decision. An action
+the simulator rejects reopens the decision as a new one. Bridge timeouts, malformed responses, and
+harness or simulator failures produce sample errors with partial traces.
 
 ## Position task
 
@@ -58,6 +72,11 @@ responses, and simulator failures produce sample errors with partial traces.
 `league-positions build|baselines|report` builds a dataset from a league run, prints
 the no-model baselines, and summarises `vgc_position` logs. A choice outside a decision's shortlist
 is valued at scoring time, which needs the built engine.
+
+`league-positions verify NAME --jobs N` recomputes the scoring pass for every stored value on the
+current engine and reports any that differ. With `--restamp` and no difference it rewrites the
+dataset's provenance to the current engine and records the commit it was valued on; a dataset whose
+commits differ from the engine's is otherwise refused before generation.
 
 ## Note task
 

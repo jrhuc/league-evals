@@ -5,7 +5,7 @@ description = "Inspect evaluations of frontier models playing VGC doubles throug
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
-dependencies = ["inspect-ai==0.3.265", "openai>=1.60", "anthropic>=0.40"]
+dependencies = ["inspect-ai==0.3.276", "openai>=1.60", "anthropic>=0.40"]
 
 [project.scripts]
 league-positions = "league_evals.positions:main"

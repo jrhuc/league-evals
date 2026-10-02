@@ -18,13 +18,13 @@ observations stays out of the mean instead of counting as zero."""
 def outcome_summary(
     outcome: dict[str, Any], focal_seat: str = "p1", defaulted: bool = False
 ) -> dict[str, Any]:
-    focal = outcome["submissions"][focal_seat]
+    focal = [row for row in outcome["decisions"][focal_seat] if row["kind"] == "decision"]
     substitutions = outcome["simulator_substitutions"][focal_seat]
     assisted = (
         defaulted
         or substitutions > 0
         or any(
-            row.get("source") in {"model-default", "simulator-default", "timer-default"}
+            row["submission_source"] in {"model-default", "simulator-default", "timer-default"}
             for row in focal
         )
     )
