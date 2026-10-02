@@ -1,10 +1,10 @@
 # Pilot: does calculator access help?
 
-**Question:** Does one fixed model win more often against greedy when given damage and
-action-order calculators, under the same reply and token limits?
+**Question:** Does one fixed model win more often against the rollout search opponent when given
+damage and action-order calculators, under the same reply and token limits?
 
 **Status:** protocol implemented; real-model comparison not yet run. The existing controls establish
-that greedy distinguishes a weak default policy. They do not answer this question.
+that the search opponent distinguishes a weak default policy. They do not answer this question.
 
 ## One run, two conditions
 
@@ -24,8 +24,7 @@ engine hashes, token limit, and sample count. Use a separate two-game smoke run 
 then freeze the pilot's settings. The command is in the [README](../README.md). Do not use `--limit`
 for the comparison, change budgets halfway through, or retry individual failures/losses.
 
-Default settings are the `search` opponent (pass `-T opponent=greedy` for the question above),
-both player seats, 24 replies per decision, and a 200-decision cutoff. Inspect sample retries are
+Default settings are the `search` opponent, both player seats, 24 replies per decision, and a 200-decision cutoff. Inspect sample retries are
 disabled; provider HTTP retries may still occur.
 The token limit counts the growing conversation and tool traffic. This tests the tool-access
 condition at a resource budget, including the tool descriptions, rather than pure reasoning ability.

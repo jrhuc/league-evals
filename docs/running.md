@@ -121,9 +121,10 @@ charged a second time. Retained failed samples contribute cost; discarded retrie
 ## Reproduce controls and inspect legacy evidence
 
 ```sh
+uv run python -m league_evals.baseline --seeds 1,2,3 --opponent search --output default-search.jsonl
 uv run python -m league_evals.baseline --seeds 1,2,3 --opponent greedy --output default-greedy.jsonl
 uv run python -m league_evals.baseline --seeds 1,2,3 --opponent random --output default-random.jsonl
-uv run python -m league_evals.baseline --summarise default-greedy.jsonl default-random.jsonl
+uv run python -m league_evals.baseline --summarise default-search.jsonl default-greedy.jsonl default-random.jsonl
 uv run inspect view --log-dir examples/logs
 ```
 
@@ -133,4 +134,5 @@ with those timestamps removed; the model's choices remain stochastic.
 
 The eight legacy model games used a different prompt/version and unequal matchup coverage. One
 win used a fallback. Their provenance has Git HEADs but lacks runtime fingerprints. Keep them
-separate from the pilot and retain their original logs as historical smoke evidence.
+separate from the pilot and retain their original logs as historical smoke evidence. They store
+the earlier outcome record, so `league_evals.report` does not read them; open them in the viewer.

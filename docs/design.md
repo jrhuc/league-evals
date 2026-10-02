@@ -32,9 +32,10 @@ interface condition's effect, including that description. Calculator-use frequen
 establish causation: models may choose to check the hardest decisions. The opponent policy plays
 from the live simulator and is the same in both arms.
 
-The no-model default policy is a negative control. Its 88.9% win rate against random exposes that
-opponent's weakness; 5.6% against greedy establishes separation from this particular weak policy.
-Neither result establishes difficulty for a competent human or discrimination among stronger models.
+The no-model default policy is a negative control. Its 91.1% win rate against random exposes that
+opponent's weakness; 15.6% against greedy and 5.0% against the rollout search establish separation
+from this particular weak policy. None of these establishes difficulty for a competent human or
+discrimination among stronger models.
 
 ## Outcomes and diagnostics
 
