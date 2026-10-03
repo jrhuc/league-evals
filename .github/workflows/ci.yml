@@ -25,4 +25,4 @@ jobs:
           version: '12.8.1'
       - run: uv sync --frozen --group dev
       - run: tools/setup-engine.sh
-      - run: uv run pytest tests/test_bridge.py
+      - run: uv run pytest tests/test_bridge.py tests/test_league_engine.py

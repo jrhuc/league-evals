@@ -1,0 +1,338 @@
+{
+ "abomasnow": {
+  "cost": 6,
+  "set": {
+   "id": "abomasnow",
+   "item": "Light Clay",
+   "ability": "Snow Warning",
+   "nature": "Adamant",
+   "moves": [
+    "Aurora Veil",
+    "Ice Shard",
+    "Blizzard",
+    "Wood Hammer"
+   ],
+   "evs": {
+    "hp": 2,
+    "atk": 32,
+    "def": 0,
+    "spa": 0,
+    "spd": 0,
+    "spe": 32
+   },
+   "note": ""
+  }
+ },
+ "alakazam": {
+  "cost": 5,
+  "set": {
+   "id": "alakazam",
+   "item": "Life Orb",
+   "ability": "Magic Guard",
+   "nature": "Timid",
+   "moves": [
+    "Focus Blast",
+    "Protect",
+    "Psychic",
+    "Shadow Ball"
+   ],
+   "evs": {
+    "hp": 2,
+    "atk": 0,
+    "def": 0,
+    "spa": 32,
+    "spd": 0,
+    "spe": 32
+   },
+   "note": ""
+  }
+ },
+ "alcremie": {
+  "cost": 4,
+  "set": {
+   "id": "alcremie",
+   "item": "Sitrus Berry",
+   "ability": "Aroma Veil",
+   "nature": "Modest",
+   "moves": [
+    "Encore",
+    "Protect",
+    "Decorate",
+    "Alluring Voice"
+   ],
+   "evs": {
+    "hp": 2,
+    "atk": 0,
+    "def": 0,
+    "spa": 32,
+    "spd": 0,
+    "spe": 32
+   },
+   "note": ""
+  }
+ },
+ "arboliva": {
+  "cost": 6,
+  "set": {
+   "id": "arboliva",
+   "item": "Life Orb",
+   "ability": "Seed Sower",
+   "nature": "Modest",
+   "moves": [
+    "Strength Sap",
+    "Earth Power",
+    "Energy Ball",
+    "Hyper Voice"
+   ],
+   "evs": {
+    "hp": 2,
+    "atk": 0,
+    "def": 0,
+    "spa": 32,
+    "spd": 0,
+    "spe": 32
+   },
+   "note": ""
+  }
+ },
+ "armarouge": {
+  "cost": 8,
+  "set": {
+   "id": "armarouge",
+   "item": "Life Orb",
+   "ability": "Weak Armor",
+   "nature": "Modest",
+   "moves": [
+    "Heat Wave",
+    "Protect",
+    "Armor Cannon",
+    "Psychic"
+   ],
+   "evs": {
+    "hp": 2,
+    "atk": 0,
+    "def": 0,
+    "spa": 32,
+    "spd": 0,
+    "spe": 32
+   },
+   "note": ""
+  }
+ },
+ "aromatisse": {
+  "cost": 6,
+  "set": {
+   "id": "aromatisse",
+   "item": "Sitrus Berry",
+   "ability": "Aroma Veil",
+   "nature": "Quiet",
+   "moves": [
+    "Moonblast",
+    "Trick Room",
+    "Heal Pulse",
+    "Encore"
+   ],
+   "evs": {
+    "hp": 32,
+    "atk": 0,
+    "def": 2,
+    "spa": 32,
+    "spd": 0,
+    "spe": 0
+   },
+   "note": ""
+  }
+ },
+ "bellibolt": {
+  "cost": 4,
+  "set": {
+   "id": "bellibolt",
+   "item": "Leftovers",
+   "ability": "Electromorphosis",
+   "nature": "Modest",
+   "moves": [
+    "Thunderbolt",
+    "Slack Off",
+    "Muddy Water",
+    "Electroweb"
+   ],
+   "evs": {
+    "hp": 2,
+    "atk": 0,
+    "def": 0,
+    "spa": 32,
+    "spd": 0,
+    "spe": 32
+   },
+   "note": ""
+  }
+ },
+ "blaziken": {
+  "cost": 6,
+  "set": {
+   "id": "blaziken",
+   "item": "Life Orb",
+   "ability": "Speed Boost",
+   "nature": "Timid",
+   "moves": [
+    "Close Combat",
+    "Heat Wave",
+    "Vacuum Wave",
+    "Detect"
+   ],
+   "evs": {
+    "hp": 2,
+    "atk": 0,
+    "def": 0,
+    "spa": 32,
+    "spd": 0,
+    "spe": 32
+   },
+   "note": ""
+  }
+ },
+ "chandelure": {
+  "cost": 6,
+  "set": {
+   "id": "chandelure",
+   "item": "Choice Scarf",
+   "ability": "Flash Fire",
+   "nature": "Timid",
+   "moves": [
+    "Heat Wave",
+    "Shadow Ball",
+    "Trick",
+    "Energy Ball"
+   ],
+   "evs": {
+    "hp": 2,
+    "atk": 0,
+    "def": 0,
+    "spa": 32,
+    "spd": 0,
+    "spe": 32
+   },
+   "note": ""
+  }
+ },
+ "charizard": {
+  "cost": 5,
+  "set": {
+   "id": "charizard",
+   "item": "Life Orb",
+   "ability": "Blaze",
+   "nature": "Timid",
+   "moves": [
+    "Heat Wave",
+    "Hurricane",
+    "Protect",
+    "Will-O-Wisp"
+   ],
+   "evs": {
+    "hp": 2,
+    "atk": 0,
+    "def": 0,
+    "spa": 32,
+    "spd": 0,
+    "spe": 32
+   },
+   "note": ""
+  }
+ },
+ "chesnaught": {
+  "cost": 4,
+  "set": {
+   "id": "chesnaught",
+   "item": "Leftovers",
+   "ability": "Bulletproof",
+   "nature": "Adamant",
+   "moves": [
+    "Body Press",
+    "Leech Seed",
+    "Spiky Shield",
+    "Iron Defense"
+   ],
+   "evs": {
+    "hp": 2,
+    "atk": 32,
+    "def": 0,
+    "spa": 0,
+    "spd": 0,
+    "spe": 32
+   },
+   "note": ""
+  }
+ },
+ "cinderace": {
+  "cost": 8,
+  "set": {
+   "id": "cinderace",
+   "item": "Sitrus Berry",
+   "ability": "Blaze",
+   "nature": "Jolly",
+   "moves": [
+    "High Jump Kick",
+    "Protect",
+    "Pyro Ball",
+    "U-turn"
+   ],
+   "evs": {
+    "hp": 2,
+    "atk": 32,
+    "def": 0,
+    "spa": 0,
+    "spd": 0,
+    "spe": 32
+   },
+   "note": ""
+  }
+ },
+ "clawitzer": {
+  "cost": 4,
+  "set": {
+   "id": "clawitzer",
+   "item": "Choice Scarf",
+   "ability": "Mega Launcher",
+   "nature": "Modest",
+   "moves": [
+    "Aura Sphere",
+    "Dragon Pulse",
+    "Dark Pulse",
+    "Muddy Water"
+   ],
+   "evs": {
+    "hp": 2,
+    "atk": 0,
+    "def": 0,
+    "spa": 32,
+    "spd": 0,
+    "spe": 32
+   },
+   "note": ""
+  }
+ },
+ "cofagrigus": {
+  "cost": 5,
+  "set": {
+   "id": "cofagrigus",
+   "item": "Leftovers",
+   "ability": "Mummy",
+   "nature": "Quiet",
+   "moves": [
+    "Trick Room",
+    "Shadow Ball",
+    "Iron Defense",
+    "Body Press"
+   ],
+   "evs": {
+    "hp": 32,
+    "atk": 0,
+    "def": 2,
+    "spa": 32,
+    "spd": 0,
+    "spe": 0
+   },
+   "note": ""
+  }
+ }
+}
