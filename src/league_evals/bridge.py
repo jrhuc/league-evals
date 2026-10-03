@@ -52,8 +52,6 @@ class LeagueBridge:
         timeout: float = 300,
         event_timeout: float = 600,
     ) -> None:
-        """A search opponent holds the engine's event loop while it thinks, so a reply can wait
-        for the opponent's whole turn."""
         self._process = process
         self._ids = count(1)
         self._pending: dict[int, asyncio.Future[dict[str, Any]]] = {}
