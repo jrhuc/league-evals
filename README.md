@@ -1,9 +1,9 @@
 # league-evals
 
-Three small [Inspect](https://inspect.aisi.org.uk) evaluations of a model playing Pokémon VGC doubles
-through the [AI Draft League](https://github.com/jrhuc/ai-draft-league) harness. Each asks one
-question, is scored by the pinned simulator with no judge model, and keeps every decision, tool call,
-and log it was scored from.
+[Inspect](https://inspect.aisi.org.uk) evaluations of a model playing Pokémon VGC doubles through
+the [AI Draft League](https://github.com/jrhuc/ai-draft-league) harness, from one decision up to a
+whole season. Each asks one question, is scored by the pinned simulator with no judge model, and
+keeps every decision, tool call, and log it was scored from.
 
 VGC supplies joint actions, hidden information, and stochastic outcomes inside a reproducible
 simulator, and the league supplies real games between frontier models: 27 of one season's 28 games
@@ -15,10 +15,12 @@ turn of them.
 | [`vgc_position`](docs/positions.md) | Where the highest-damage action is not the highest-win-rate action, which does a model choose? | one recorded decision, scored against offline rollouts |
 | [`vgc_note`](docs/notes.md) | When a notebook line is wrong, does the model re-run the calculation or act on it, and does that depend on who the note says wrote it? | the same kind of decision, with a notebook excerpt attached |
 | [`vgc_battle`](docs/design.md) | Does calculator access improve matched game outcomes? | one whole game against a fixed opponent |
+| [`vgc_league`](docs/running.md#league-task) | Where does a model finish when it manages a franchise for a whole season against bot franchises? | one season: draft, builds, every game, reviews, and trades |
 
-These are evaluations of a model plus its tools in one game or one decision. Transfer to other domains
-and adaptation across a season are untested here; what the league showed about those is qualitative
-and written up elsewhere.
+The first three evaluate a model plus its tools in one game or one decision. `vgc_league` is the
+long-horizon one: the model drafts against bots, builds a six for every opponent, plays every game,
+reviews between weeks, and may trade, and it is scored by where it finishes. Transfer to other domains
+is untested here.
 
 ## What we know so far
 
@@ -32,6 +34,11 @@ damage-greedy one on independent dice. Scored on a third, independent set of rol
 | Damage-greedy action | 157 | 0.47 | 3.2% | 0.0% |
 | Uniformly random legal action | 157 | 0.50 | – | – |
 | What the league model actually played | 157 | 0.23 | 39.5% | 77.1% |
+| The engine's rollout search opponent | 157 | 0.18 | 48.4% | 82.8% |
+
+The last row is the `search` policy `vgc_battle` now plays against, asked for its own action on each
+decision. It reads the simulator's battle, so it knows the opposing bench, and it shares the damage
+continuation the scoring rollouts assume; both favour it.
 
 The rollouts assume a continuation nobody played, so they were checked against what happened: the
 value of the action a league model really took predicts who won that game with AUC 0.89 over all 494
@@ -39,7 +46,8 @@ decisions, 0.96 from turn 6, and 0.68 on turns 1-2, where the assumption bites h
 [Method, validity check, and limits](docs/positions.md).
 
 **First model run.** Claude Opus 5.5 with full calculator access, through OpenRouter, on the 99 kept
-decisions from turn 3 on. It cost about $13.60, including requests lost to two interrupted
+decisions from turn 3 on. This used version 1 of the task, with this repository's own prompt; the
+task now sends the league coach's prompt, so new runs are a different condition. It cost about $13.60, including requests lost to two interrupted
 attempts. On those 99 decisions:
 
 | Policy | Mean win rate given up | Within 0.10 of the reference | Beats the damage policy |
@@ -47,6 +55,7 @@ attempts. On those 99 decisions:
 | Damage-greedy action | 0.45 | 2.0% | 0.0% |
 | Uniformly random legal action | 0.49 | – | – |
 | What the league model actually played | 0.22 | 42.4% | 75.8% |
+| The engine's rollout search opponent | 0.18 | 53.5% | 80.8% |
 | Claude Opus 5.5 | 0.23 | 39.4% | 74.7% |
 
 Paired with the league's move on each decision, Opus 5.5 did better on 32, the same on 35, and worse
@@ -60,16 +69,19 @@ notes, another agent, a human coach, or the harness, and the task records whethe
 that calculation and whether it plays the claimed attack more than with the honest line.
 [Design, what the league's real notes looked like, and limits](docs/notes.md).
 
-**Whole games.** A no-model control that always takes the harness default wins 160/180 against a random
-opponent and 10/180 against the damage-greedy one, on six teams, both seats, and three seeds. Random
-is too weak for a headline; whether greedy separates stronger models is open. The eight
-[legacy model games](examples/logs) are smoke traces, not evidence of a calculator benefit.
-[Raw greedy controls](examples/default-vs-greedy.jsonl) ·
+**Whole games.** A no-model control that always takes the harness default wins 164/180 against a random
+opponent, 28/180 against the damage-greedy one, and 9/180 against the rollout search, on six teams,
+both seats, and three seeds. The search itself beats greedy in 27 of 30 games and random in 12 of 12.
+Random is too weak for a headline; whether the search separates stronger models is open, since no
+model has played it yet. The eight [legacy model games](examples/logs) are smoke traces from an
+earlier prompt and opponent, not evidence of a calculator benefit.
+[Raw search controls](examples/default-vs-search.jsonl) ·
+[raw greedy controls](examples/default-vs-greedy.jsonl) ·
 [raw random controls](examples/default-vs-random.jsonl) · [pilot protocol](docs/experiment.md)
 
 ## Try it
 
-Requires Python 3.11+, [uv](https://docs.astral.sh/uv/), Node 24, and pnpm 12.3.4.
+Requires Python 3.11+, [uv](https://docs.astral.sh/uv/), Node 24, and pnpm 12.8.1.
 The pinned parent harness declares Node `>=24.21.0 <25`.
 
 ```sh
@@ -103,6 +115,17 @@ uv run inspect eval league_evals/vgc_battle \
   --no-fail-on-error --max-samples 2 --log-dir logs/pilot
 uv run python -m league_evals.report logs/pilot
 uv run python -m league_evals.report logs/pilot --compare NO_CALCULATORS_ID,FULL_ID
+```
+
+A season is one sample and the most expensive task: a four-seat league is a ten-pick draft, three
+round-robin series and possibly a final, each best of three, with a build before every series and a
+review after every game. Run the no-model controls first; they cost nothing but time:
+
+```sh
+uv run inspect eval league_evals/vgc_league --model mockllm/model -T control=random -T seeds=1,2,3
+uv run inspect eval league_evals/vgc_league --model mockllm/model -T control=bot -T seeds=1,2,3
+uv run inspect eval league_evals/vgc_league --model "$EVAL_MODEL" -M strict_tools=false \
+  -T seeds=1 --no-fail-on-error --log-dir logs/league
 ```
 
 Use `--limit` in a separate log directory for a plumbing check, never as a model comparison.

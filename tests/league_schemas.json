@@ -1,0 +1,3062 @@
+{
+ "submit_pick": {
+  "system": "You are external:probe, manager of a franchise in a Pokémon VGC draft league played in the format gen9championsvgc2026regmcbo3.\nThe franchise is yours for the whole season: you draft its roster, revie",
+  "tools": [
+   {
+    "name": "lookup_species",
+    "description": "Look up a species: typing, abilities, base stats, forme, Mega Stone outcomes, and optional nature-based raw Speed range.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      },
+      "item": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "nature": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_move",
+    "description": "Look up a move: type, category, power, accuracy, priority, target, and effect text.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_item",
+    "description": "Look up an item's effect text and mega-stone behaviour.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_learnset",
+    "description": "List every move a species can legally learn in this format's ruleset.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_ability",
+    "description": "Look up an ability's effect text.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "calculate_stats",
+    "description": "Calculate exact raw stats for a proposed spread using this format simulator. Champions Stat Points cap at 32 per stat and 66 total; classic EV formats cap at 252 per stat and 510 total.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "species": {
+       "type": "string"
+      },
+      "nature": {
+       "type": "string"
+      },
+      "evs": {
+       "type": "object",
+       "description": "Format investment values: Stat Points in Champions, EVs elsewhere. Omitted stats are 0.",
+       "properties": {
+        "hp": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "atk": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "def": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": 0
+        }
+       },
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "species",
+      "nature",
+      "evs"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_matchup",
+    "description": "Look up type-chart effectiveness for an attacking move or type into a defending species. Returns immunity/SE/NVE multipliers only, not damage. With only attacker and defender species, reports each of the attacker types into the defender.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "attacker": {
+       "type": "string",
+       "description": "Attacking species, required for form-dependent moves such as Raging Bull."
+      },
+      "attacker_type": {
+       "type": "string",
+       "description": "Attacking type, or omit when move is provided."
+      },
+      "move": {
+       "type": "string",
+       "description": "Move name; its contextual type is used when provided."
+      },
+      "defender": {
+       "type": "string",
+       "description": "Defending species name."
+      }
+     },
+     "required": [
+      "defender"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "estimate_damage",
+    "description": "Conditional hit outcomes computed by this format's battle engine at level 50 in doubles. Damage percentages and survival outcomes evaluate stat, damage-roll, and hit-count endpoints; they do not establish exhaustive KO certainty. Selected hits are assumed to connect. Action-level effects such as protection, redirection, and charging, and multi-target hit allocation are not resolved. Supplied abilities, items, stat stages, status, screens, weather, terrain, Helping Hand, spread reduction, and variable-power moves feed the native hit loop; omitted factors are neutral. During a battle, live board and revealed team-sheet facts override arguments, including active allies and fainted counts. The result lists applied factors. Critical hits require an explicit flag. Hazard chip and prior activation state such as a Flash Fire charge, Metronome count, or Rage Fist hit tally are not modeled. Exact own battle stats narrow the endpoints; unknown opposing stats use legal investment ranges, narrowed by revealed nature. Only stats used by the move are read; implausible values fall back to legal ranges with a note.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "attacker": {
+       "type": "string"
+      },
+      "defender": {
+       "type": "string"
+      },
+      "move": {
+       "type": "string"
+      },
+      "attacker_ability": {
+       "type": "string",
+       "description": "Applied exactly by the engine. Omit for a neutral, no-effect ability."
+      },
+      "defender_ability": {
+       "type": "string",
+       "description": "Applied exactly by the engine, including immunities and absorb abilities. Omit for a neutral, no-effect ability."
+      },
+      "attacker_stats": {
+       "type": "object",
+       "description": "Optional exact raw stats from your own build. Only the stat this move attacks with is read; other keys are ignored, so never pad unknown stats with placeholder values.",
+       "properties": {
+        "atk": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "def": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spa": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spd": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spe": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        }
+       },
+       "additionalProperties": false
+      },
+      "defender_stats": {
+       "type": "object",
+       "description": "Optional exact raw stats when the defender is your own Pokémon. HP also drives fixed and HP-scaled damage; other keys beyond hp and the stat this move targets are ignored.",
+       "properties": {
+        "hp": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "atk": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "def": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spa": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spd": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spe": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        }
+       },
+       "additionalProperties": false
+      },
+      "attacker_boosts": {
+       "type": "object",
+       "description": "Current stat stages on the attacker, -6 to +6.",
+       "properties": {
+        "atk": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "def": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        }
+       },
+       "additionalProperties": false
+      },
+      "defender_boosts": {
+       "type": "object",
+       "description": "Current stat stages on the defender, -6 to +6.",
+       "properties": {
+        "atk": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "def": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        }
+       },
+       "additionalProperties": false
+      },
+      "attacker_status": {
+       "type": "string",
+       "enum": [
+        "brn",
+        "par",
+        "psn",
+        "tox",
+        "slp",
+        "frz"
+       ],
+       "description": "Status on the attacker; burn, Guts, Facade, and similar interactions are engine-computed."
+      },
+      "defender_status": {
+       "type": "string",
+       "enum": [
+        "brn",
+        "par",
+        "psn",
+        "tox",
+        "slp",
+        "frz"
+       ],
+       "description": "Status on the defender, for moves like Hex."
+      },
+      "defender_screens": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "enum": [
+         "reflect",
+         "lightscreen",
+         "auroraveil"
+        ]
+       },
+       "description": "Screens up on the defender's side."
+      },
+      "terrain": {
+       "type": "string",
+       "description": "electric | grassy | misty | psychic"
+      },
+      "weather": {
+       "type": "string",
+       "description": "sun | rain | sand | snow | desolateland | primordialsea"
+      },
+      "helping_hand": {
+       "type": "boolean",
+       "description": "An ally used Helping Hand on the attacker this turn (1.5x)."
+      },
+      "is_critical_hit": {
+       "type": "boolean",
+       "description": "Compute as a critical hit: 1.5x, ignoring the defender's positive stages and screens."
+      },
+      "attacker_hits_taken": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "Direct hits the attacker has taken since it entered, which scale Rage Fist; defaults to the live count, which resets when it switches out."
+      },
+      "attacker_hp_percent": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 100,
+       "description": "Current attacker HP percentage, for HP-scaling moves and pinch abilities."
+      },
+      "defender_hp_percent": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 100,
+       "description": "Current defender HP percentage shown in battle; also gates HP-dependent defensive abilities."
+      },
+      "attacker_item": {
+       "type": "string",
+       "description": "Any item; the engine applies its real effect."
+      },
+      "defender_item": {
+       "type": "string",
+       "description": "Any item; the engine applies its real effect."
+      },
+      "attacker_nature": {
+       "type": "string"
+      },
+      "defender_nature": {
+       "type": "string"
+      },
+      "is_spread_hit": {
+       "type": "boolean",
+       "description": "True when the move hits more than one Pokémon (0.75x in doubles). Defaults false outside a live battle because no second target is known; the live harness derives this from the board."
+      }
+     },
+     "required": [
+      "attacker",
+      "defender",
+      "move"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "search_board",
+    "description": "Filter and sort the board. During the draft, defaults to your currently legal picks; otherwise searches the full board. Mega entries show both forms; their stone is required in either form. Type, ability, stat and move filters must match together on one form.",
+    "parameters": {
+     "$schema": "https://json-schema.org/draft/2020-12/schema",
+     "type": "object",
+     "properties": {
+      "types": {
+       "default": [],
+       "description": "Every listed type must occur on the same form. [\"Fire\",\"Flying\"] requires both.",
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "max_cost": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "min_cost": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "learns": {
+       "description": "Move legally learned in this format.",
+       "type": "string"
+      },
+      "ability": {
+       "description": "Ability in any slot of the base or Mega form.",
+       "type": "string"
+      },
+      "min_bst": {
+       "description": "Minimum base stat total of the matching form.",
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "sort": {
+       "default": "cost",
+       "description": "cost: high to low; bst: highest matching form first; name: A to Z.",
+       "type": "string",
+       "enum": [
+        "cost",
+        "bst",
+        "name"
+       ]
+      },
+      "limit": {
+       "default": 40,
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 100
+      },
+      "include_unavailable": {
+       "default": false,
+       "description": "During the draft, include entries that are not legal picks for you.",
+       "type": "boolean"
+      }
+     },
+     "additionalProperties": false
+    }
+   }
+  ],
+  "submission": {
+   "name": "submit_pick",
+   "description": "Submit your decision. Validation errors are returned so you can correct and resubmit it. After acceptance, end your reply.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "pick": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The board id of the Pokémon you draft, copied exactly from the board list."
+     },
+     "reasoning": {
+      "description": "A concise reason for this pick.",
+      "type": "string"
+     },
+     "plan": {
+      "description": "Your plan for your remaining picks; replaces the previous plan. Omit it unless your plan changed.",
+      "type": "string",
+      "maxLength": 4000
+     }
+    },
+    "required": [
+     "pick"
+    ],
+    "additionalProperties": false
+   }
+  }
+ },
+ "submit_name": {
+  "system": "You are external:probe. The competitive draft is complete.\nPokémon Champions and this regulation may postdate your training data. Treat the rules in this prompt and the pinned Pokémon Showdown simulat",
+  "tools": [],
+  "submission": {
+   "name": "submit_name",
+   "description": "Submit your decision. Validation errors are returned so you can correct and resubmit it. After acceptance, end your reply.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "team_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60,
+      "description": "Your franchise name for the spectator-facing league display."
+     }
+    },
+    "required": [
+     "team_name"
+    ],
+    "additionalProperties": false
+   }
+  }
+ },
+ "submit_team": {
+  "system": "You are external:probe, building the six for one matchup on behalf of the franchise you manage in a Pokémon VGC draft league, format gen9championsvgc2026regmcbo3.\nPokémon Champions and this regulation",
+  "tools": [
+   {
+    "name": "lookup_species",
+    "description": "Look up a species: typing, abilities, base stats, forme, Mega Stone outcomes, and optional nature-based raw Speed range.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      },
+      "item": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "nature": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_move",
+    "description": "Look up a move: type, category, power, accuracy, priority, target, and effect text.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_item",
+    "description": "Look up an item's effect text and mega-stone behaviour.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_learnset",
+    "description": "List every move a species can legally learn in this format's ruleset.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_ability",
+    "description": "Look up an ability's effect text.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "calculate_stats",
+    "description": "Calculate exact raw stats for a proposed spread using this format simulator. Champions Stat Points cap at 32 per stat and 66 total; classic EV formats cap at 252 per stat and 510 total.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "species": {
+       "type": "string"
+      },
+      "nature": {
+       "type": "string"
+      },
+      "evs": {
+       "type": "object",
+       "description": "Format investment values: Stat Points in Champions, EVs elsewhere. Omitted stats are 0.",
+       "properties": {
+        "hp": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "atk": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "def": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": 0
+        }
+       },
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "species",
+      "nature",
+      "evs"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_matchup",
+    "description": "Look up type-chart effectiveness for an attacking move or type into a defending species. Returns immunity/SE/NVE multipliers only, not damage. With only attacker and defender species, reports each of the attacker types into the defender.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "attacker": {
+       "type": "string",
+       "description": "Attacking species, required for form-dependent moves such as Raging Bull."
+      },
+      "attacker_type": {
+       "type": "string",
+       "description": "Attacking type, or omit when move is provided."
+      },
+      "move": {
+       "type": "string",
+       "description": "Move name; its contextual type is used when provided."
+      },
+      "defender": {
+       "type": "string",
+       "description": "Defending species name."
+      }
+     },
+     "required": [
+      "defender"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "estimate_damage",
+    "description": "Conditional hit outcomes computed by this format's battle engine at level 50 in doubles. Damage percentages and survival outcomes evaluate stat, damage-roll, and hit-count endpoints; they do not establish exhaustive KO certainty. Selected hits are assumed to connect. Action-level effects such as protection, redirection, and charging, and multi-target hit allocation are not resolved. Supplied abilities, items, stat stages, status, screens, weather, terrain, Helping Hand, spread reduction, and variable-power moves feed the native hit loop; omitted factors are neutral. During a battle, live board and revealed team-sheet facts override arguments, including active allies and fainted counts. The result lists applied factors. Critical hits require an explicit flag. Hazard chip and prior activation state such as a Flash Fire charge, Metronome count, or Rage Fist hit tally are not modeled. Exact own battle stats narrow the endpoints; unknown opposing stats use legal investment ranges, narrowed by revealed nature. Only stats used by the move are read; implausible values fall back to legal ranges with a note.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "attacker": {
+       "type": "string"
+      },
+      "defender": {
+       "type": "string"
+      },
+      "move": {
+       "type": "string"
+      },
+      "attacker_ability": {
+       "type": "string",
+       "description": "Applied exactly by the engine. Omit for a neutral, no-effect ability."
+      },
+      "defender_ability": {
+       "type": "string",
+       "description": "Applied exactly by the engine, including immunities and absorb abilities. Omit for a neutral, no-effect ability."
+      },
+      "attacker_stats": {
+       "type": "object",
+       "description": "Optional exact raw stats from your own build. Only the stat this move attacks with is read; other keys are ignored, so never pad unknown stats with placeholder values.",
+       "properties": {
+        "atk": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "def": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spa": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spd": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spe": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        }
+       },
+       "additionalProperties": false
+      },
+      "defender_stats": {
+       "type": "object",
+       "description": "Optional exact raw stats when the defender is your own Pokémon. HP also drives fixed and HP-scaled damage; other keys beyond hp and the stat this move targets are ignored.",
+       "properties": {
+        "hp": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "atk": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "def": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spa": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spd": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spe": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        }
+       },
+       "additionalProperties": false
+      },
+      "attacker_boosts": {
+       "type": "object",
+       "description": "Current stat stages on the attacker, -6 to +6.",
+       "properties": {
+        "atk": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "def": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        }
+       },
+       "additionalProperties": false
+      },
+      "defender_boosts": {
+       "type": "object",
+       "description": "Current stat stages on the defender, -6 to +6.",
+       "properties": {
+        "atk": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "def": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        }
+       },
+       "additionalProperties": false
+      },
+      "attacker_status": {
+       "type": "string",
+       "enum": [
+        "brn",
+        "par",
+        "psn",
+        "tox",
+        "slp",
+        "frz"
+       ],
+       "description": "Status on the attacker; burn, Guts, Facade, and similar interactions are engine-computed."
+      },
+      "defender_status": {
+       "type": "string",
+       "enum": [
+        "brn",
+        "par",
+        "psn",
+        "tox",
+        "slp",
+        "frz"
+       ],
+       "description": "Status on the defender, for moves like Hex."
+      },
+      "defender_screens": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "enum": [
+         "reflect",
+         "lightscreen",
+         "auroraveil"
+        ]
+       },
+       "description": "Screens up on the defender's side."
+      },
+      "terrain": {
+       "type": "string",
+       "description": "electric | grassy | misty | psychic"
+      },
+      "weather": {
+       "type": "string",
+       "description": "sun | rain | sand | snow | desolateland | primordialsea"
+      },
+      "helping_hand": {
+       "type": "boolean",
+       "description": "An ally used Helping Hand on the attacker this turn (1.5x)."
+      },
+      "is_critical_hit": {
+       "type": "boolean",
+       "description": "Compute as a critical hit: 1.5x, ignoring the defender's positive stages and screens."
+      },
+      "attacker_hits_taken": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "Direct hits the attacker has taken since it entered, which scale Rage Fist; defaults to the live count, which resets when it switches out."
+      },
+      "attacker_hp_percent": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 100,
+       "description": "Current attacker HP percentage, for HP-scaling moves and pinch abilities."
+      },
+      "defender_hp_percent": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 100,
+       "description": "Current defender HP percentage shown in battle; also gates HP-dependent defensive abilities."
+      },
+      "attacker_item": {
+       "type": "string",
+       "description": "Any item; the engine applies its real effect."
+      },
+      "defender_item": {
+       "type": "string",
+       "description": "Any item; the engine applies its real effect."
+      },
+      "attacker_nature": {
+       "type": "string"
+      },
+      "defender_nature": {
+       "type": "string"
+      },
+      "is_spread_hit": {
+       "type": "boolean",
+       "description": "True when the move hits more than one Pokémon (0.75x in doubles). Defaults false outside a live battle because no second target is known; the live harness derives this from the board."
+      }
+     },
+     "required": [
+      "attacker",
+      "defender",
+      "move"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "read_memory_page",
+    "description": "One of your own memory pages in full. Page names are listed in your prompt.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string",
+       "description": "The page name."
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   }
+  ],
+  "submission": {
+   "name": "submit_team",
+   "description": "Submit your decision. Validation errors are returned so you can correct and resubmit it. After acceptance, end your reply.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "team_plan": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "2-5 sentences on how these six play together; shown to your pilot in battle. At most 2000 characters."
+     },
+     "sets": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string",
+         "description": "Board id of the Pokémon exactly as listed in your roster."
+        },
+        "item": {
+         "type": "string",
+         "description": "Canonical Showdown item name from the allowed list, or \"\" for no item."
+        },
+        "ability": {
+         "type": "string",
+         "description": "Canonical Showdown ability name."
+        },
+        "nature": {
+         "type": "string",
+         "description": "Canonical Showdown nature name."
+        },
+        "moves": {
+         "maxItems": 4,
+         "type": "array",
+         "items": {
+          "type": "string",
+          "minLength": 1
+         },
+         "description": "One to four canonical Showdown move names."
+        },
+        "evs": {
+         "type": "object",
+         "properties": {
+          "hp": {
+           "type": "number"
+          },
+          "atk": {
+           "type": "number"
+          },
+          "def": {
+           "type": "number"
+          },
+          "spa": {
+           "type": "number"
+          },
+          "spd": {
+           "type": "number"
+          },
+          "spe": {
+           "type": "number"
+          }
+         },
+         "required": [
+          "hp",
+          "atk",
+          "def",
+          "spa",
+          "spd",
+          "spe"
+         ],
+         "additionalProperties": false,
+         "description": "EV points per stat; whole numbers within the format's per-stat and total limits."
+        },
+        "note": {
+         "default": "",
+         "description": "One line on this set's job; shown to your pilot in battle.",
+         "type": "string"
+        }
+       },
+       "required": [
+        "id",
+        "item",
+        "ability",
+        "nature",
+        "moves",
+        "evs",
+        "note"
+       ],
+       "additionalProperties": false
+      },
+      "description": "One entry per Pokémon you bring, in the order you want them listed."
+     }
+    },
+    "required": [
+     "sets"
+    ],
+    "additionalProperties": false
+   }
+  }
+ },
+ "submit_action": {
+  "system": "You are an expert VGC player in a persistent best-of-three match. Maximize the probability of winning the series.\nPokémon Champions and this regulation may postdate your training data. Treat the rules",
+  "tools": [
+   {
+    "name": "lookup_species",
+    "description": "Look up a species: typing, abilities, base stats, forme, Mega Stone outcomes, and optional nature-based raw Speed range.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      },
+      "item": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "nature": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_move",
+    "description": "Look up a move: type, category, power, accuracy, priority, target, and effect text.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_item",
+    "description": "Look up an item's effect text and mega-stone behaviour.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_learnset",
+    "description": "List every move a species can legally learn in this format's ruleset.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_ability",
+    "description": "Look up an ability's effect text.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "calculate_stats",
+    "description": "Calculate exact raw stats for a proposed spread using this format simulator. Champions Stat Points cap at 32 per stat and 66 total; classic EV formats cap at 252 per stat and 510 total.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "species": {
+       "type": "string"
+      },
+      "nature": {
+       "type": "string"
+      },
+      "evs": {
+       "type": "object",
+       "description": "Format investment values: Stat Points in Champions, EVs elsewhere. Omitted stats are 0.",
+       "properties": {
+        "hp": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "atk": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "def": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": 0
+        }
+       },
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "species",
+      "nature",
+      "evs"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_matchup",
+    "description": "Look up type-chart effectiveness for an attacking move or type into a defending species. Returns immunity/SE/NVE multipliers only, not damage. With only attacker and defender species, reports each of the attacker types into the defender.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "attacker": {
+       "type": "string",
+       "description": "Attacking species, required for form-dependent moves such as Raging Bull."
+      },
+      "attacker_type": {
+       "type": "string",
+       "description": "Attacking type, or omit when move is provided."
+      },
+      "move": {
+       "type": "string",
+       "description": "Move name; its contextual type is used when provided."
+      },
+      "defender": {
+       "type": "string",
+       "description": "Defending species name."
+      }
+     },
+     "required": [
+      "defender"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "estimate_damage",
+    "description": "Estimate conditional hit outcomes using the current battle request and open team sheets. Hits are assumed to connect; evaluated endpoints do not establish exhaustive KO certainty or resolve action-level effects such as protection or redirection. Supply only the two visible Pokémon and move; the harness applies known abilities, items, exact own stats, opposing nature ranges, boosts, status, HP, screens, weather, terrain, both active allies with their abilities, the fainted count that scales Last Respects, and the hits the attacker has taken that scale Rage Fist. Helping Hand, critical-hit and hits-taken inputs are optional hypothetical overrides. Any two registered Pokémon can be evaluated at team preview. A benched Pokémon fills an empty slot on its side; when the side is full it is evaluated in each slot it could take, unless attacker_replaces or defender_replaces names the one that leaves. Switch-in events are not simulated. Set attacker_mega or defender_mega to evaluate its legal Mega forme with the known stone, which also brings the weather its ability sets; weather, terrain and each side's stat stages default to the live state and can be overridden; the live state is unchanged.",
+    "parameters": {
+     "properties": {
+      "move": {
+       "type": "string"
+      },
+      "helping_hand": {
+       "type": "boolean",
+       "description": "An ally used Helping Hand on the attacker this turn (1.5x)."
+      },
+      "is_critical_hit": {
+       "type": "boolean",
+       "description": "Compute as a critical hit: 1.5x, ignoring the defender's positive stages and screens."
+      },
+      "attacker_hits_taken": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "Direct hits the attacker has taken since it entered, which scale Rage Fist; defaults to the live count, which resets when it switches out."
+      },
+      "attacker": {
+       "type": "string",
+       "description": "Species name, or a slot: ally 1, ally 2, foe 1, foe 2. When both sides have the species, prefix it: ally Charizard or foe Charizard."
+      },
+      "defender": {
+       "type": "string",
+       "description": "Species name, or a slot: ally 1, ally 2, foe 1, foe 2. When both sides have the species, prefix it: ally Charizard or foe Charizard."
+      },
+      "attacker_boosts": {
+       "type": "object",
+       "description": "Hypothetical stat stages for the attacker, such as {\"atk\": 2} after Swords Dance or {\"atk\": -1} after an Intimidate. Stats left out keep their live stage.",
+       "properties": {
+        "atk": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "def": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        }
+       },
+       "additionalProperties": false
+      },
+      "defender_boosts": {
+       "type": "object",
+       "description": "Hypothetical stat stages for the defender. Stats left out keep their live stage.",
+       "properties": {
+        "atk": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "def": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        }
+       },
+       "additionalProperties": false
+      },
+      "weather": {
+       "type": "string",
+       "description": "Hypothetical weather: sun, rain, sand, snow, or none. Defaults to the live weather; use it to see a Chlorophyll or sun-boosted line before Drought is up."
+      },
+      "terrain": {
+       "type": "string",
+       "description": "Hypothetical terrain: electric, grassy, misty, psychic, or none. Defaults to the live terrain."
+      },
+      "attacker_mega": {
+       "type": "boolean",
+       "description": "Evaluate the attacker after Mega Evolving."
+      },
+      "defender_mega": {
+       "type": "boolean",
+       "description": "Evaluate the defender after Mega Evolving."
+      },
+      "attacker_replaces": {
+       "type": "string",
+       "description": "For a benched attacker, the same-side active Pokémon or slot it replaces."
+      },
+      "defender_replaces": {
+       "type": "string",
+       "description": "For a benched defender, the same-side active Pokémon or slot it replaces."
+      }
+     },
+     "type": "object",
+     "required": [
+      "attacker",
+      "defender",
+      "move"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "compare_action_order",
+    "description": "Compare two Pokémon (active, benched, or any two registered at team preview) using live Speed state without revealing hidden EVs. Applies visible items, boosts, status, Tailwind, weather abilities, Trick Room, and move priority including ability modifiers (Prankster, Gale Wings, Triage, Grassy Glide, Stall, Mycelium Might) and priority items (Quick Claw, Lagging Tail); also explains Encore timing and redundant locks. A Speed change takes effect the moment it happens, so to see the order after a Tailwind, Icy Wind, Trick Room or weather that goes up earlier in the same turn, set the matching hypothetical. Pass \"switch\" as a move to time a switch-out, which resolves before moves.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "first": {
+       "type": "string",
+       "description": "Species name (active or benched) or ally/foe slot, such as ally 1."
+      },
+      "second": {
+       "type": "string",
+       "description": "Species name (active or benched) or ally/foe slot, such as foe 2."
+      },
+      "first_move": {
+       "type": "string",
+       "description": "Optional move being considered for the first Pokémon, or \"switch\" for switching out."
+      },
+      "second_move": {
+       "type": "string",
+       "description": "Optional move being considered for the second Pokémon, or \"switch\" for switching out."
+      },
+      "first_mega": {
+       "type": "boolean",
+       "description": "Compare the first Pokémon after a legal Mega Evolution with its known stone."
+      },
+      "second_mega": {
+       "type": "boolean",
+       "description": "Compare the second Pokémon after a legal Mega Evolution with its known stone."
+      },
+      "weather": {
+       "type": "string",
+       "description": "Hypothetical weather: sun, rain, sand, snow, or none. Defaults to the live weather."
+      },
+      "first_speed_stage": {
+       "type": "integer",
+       "minimum": -6,
+       "maximum": 6,
+       "description": "Hypothetical Speed stage for the first Pokémon, such as -1 after Icy Wind or +1 after Dragon Dance. Defaults to its live stage."
+      },
+      "second_speed_stage": {
+       "type": "integer",
+       "minimum": -6,
+       "maximum": 6,
+       "description": "Hypothetical Speed stage for the second Pokémon."
+      },
+      "first_tailwind": {
+       "type": "boolean",
+       "description": "Whether Tailwind is up on the first Pokémon's side for this comparison. Defaults to the live field."
+      },
+      "second_tailwind": {
+       "type": "boolean",
+       "description": "Whether Tailwind is up on the second Pokémon's side for this comparison."
+      },
+      "trick_room": {
+       "type": "boolean",
+       "description": "Whether Trick Room is up for this comparison. Defaults to the live field."
+      }
+     },
+     "required": [
+      "first",
+      "second"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "read_battle_history",
+    "description": "Read your private Showdown observations, submitted choices and stated reasons, and reviews from a game in this series, including earlier games and turns omitted from the prompt. Submitted choices may have been rejected by Showdown. For another page, repeat the same game_number and from_turn with the returned next_offset.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "game_number": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "from_turn": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "First turn to include; defaults to 0."
+      },
+      "offset": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "Character offset; defaults to 0."
+      }
+     },
+     "required": [
+      "game_number"
+     ],
+     "additionalProperties": false
+    }
+   }
+  ],
+  "submission": {
+   "name": "submit_action",
+   "description": "Submit your decision. Validation errors are returned so you can correct and resubmit it. After acceptance, end your reply.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "choices": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 9007199254740991
+      },
+      "description": "The menu index chosen for each displayed slot, in slot order."
+     },
+     "rationale": {
+      "description": "Why this joint action; kept in your private history.",
+      "type": "string",
+      "maxLength": 2000
+     },
+     "notebook": {
+      "type": "object",
+      "properties": {
+       "team_playbook": {
+        "description": "Transferable facts about piloting your team; kept across opponents.",
+        "type": "string",
+        "maxLength": 3500
+       },
+       "series_memory": {
+        "description": "Facts and tendencies specific to this opponent; cleared on a new opponent.",
+        "type": "string",
+        "maxLength": 3000
+       },
+       "next_game_plan": {
+        "description": "Immediate plan and contingencies for the next game; cleared on a new opponent.",
+        "type": "string",
+        "maxLength": 1500
+       }
+      },
+      "additionalProperties": false,
+      "description": "Private notebook update. Each supplied string replaces that field; omitted fields stay unchanged; an empty string clears a field."
+     }
+    },
+    "required": [
+     "choices"
+    ],
+    "additionalProperties": false
+   }
+  }
+ },
+ "submit_review": {
+  "system": "You are an expert VGC player in a persistent best-of-three match. Maximize the probability of winning the series.\nPokémon Champions and this regulation may postdate your training data. Treat the rules",
+  "tools": [
+   {
+    "name": "lookup_species",
+    "description": "Look up a species: typing, abilities, base stats, forme, Mega Stone outcomes, and optional nature-based raw Speed range.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      },
+      "item": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "nature": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_move",
+    "description": "Look up a move: type, category, power, accuracy, priority, target, and effect text.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_item",
+    "description": "Look up an item's effect text and mega-stone behaviour.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_learnset",
+    "description": "List every move a species can legally learn in this format's ruleset.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_ability",
+    "description": "Look up an ability's effect text.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "calculate_stats",
+    "description": "Calculate exact raw stats for a proposed spread using this format simulator. Champions Stat Points cap at 32 per stat and 66 total; classic EV formats cap at 252 per stat and 510 total.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "species": {
+       "type": "string"
+      },
+      "nature": {
+       "type": "string"
+      },
+      "evs": {
+       "type": "object",
+       "description": "Format investment values: Stat Points in Champions, EVs elsewhere. Omitted stats are 0.",
+       "properties": {
+        "hp": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "atk": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "def": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": 0
+        }
+       },
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "species",
+      "nature",
+      "evs"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_matchup",
+    "description": "Look up type-chart effectiveness for an attacking move or type into a defending species. Returns immunity/SE/NVE multipliers only, not damage. With only attacker and defender species, reports each of the attacker types into the defender.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "attacker": {
+       "type": "string",
+       "description": "Attacking species, required for form-dependent moves such as Raging Bull."
+      },
+      "attacker_type": {
+       "type": "string",
+       "description": "Attacking type, or omit when move is provided."
+      },
+      "move": {
+       "type": "string",
+       "description": "Move name; its contextual type is used when provided."
+      },
+      "defender": {
+       "type": "string",
+       "description": "Defending species name."
+      }
+     },
+     "required": [
+      "defender"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "estimate_damage",
+    "description": "Estimate conditional hit outcomes using the current battle request and open team sheets. Hits are assumed to connect; evaluated endpoints do not establish exhaustive KO certainty or resolve action-level effects such as protection or redirection. Supply only the two visible Pokémon and move; the harness applies known abilities, items, exact own stats, opposing nature ranges, boosts, status, HP, screens, weather, terrain, both active allies with their abilities, the fainted count that scales Last Respects, and the hits the attacker has taken that scale Rage Fist. Helping Hand, critical-hit and hits-taken inputs are optional hypothetical overrides. Any two registered Pokémon can be evaluated at team preview. A benched Pokémon fills an empty slot on its side; when the side is full it is evaluated in each slot it could take, unless attacker_replaces or defender_replaces names the one that leaves. Switch-in events are not simulated. Set attacker_mega or defender_mega to evaluate its legal Mega forme with the known stone, which also brings the weather its ability sets; weather, terrain and each side's stat stages default to the live state and can be overridden; the live state is unchanged.",
+    "parameters": {
+     "properties": {
+      "move": {
+       "type": "string"
+      },
+      "helping_hand": {
+       "type": "boolean",
+       "description": "An ally used Helping Hand on the attacker this turn (1.5x)."
+      },
+      "is_critical_hit": {
+       "type": "boolean",
+       "description": "Compute as a critical hit: 1.5x, ignoring the defender's positive stages and screens."
+      },
+      "attacker_hits_taken": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "Direct hits the attacker has taken since it entered, which scale Rage Fist; defaults to the live count, which resets when it switches out."
+      },
+      "attacker": {
+       "type": "string",
+       "description": "Species name, or a slot: ally 1, ally 2, foe 1, foe 2. When both sides have the species, prefix it: ally Charizard or foe Charizard."
+      },
+      "defender": {
+       "type": "string",
+       "description": "Species name, or a slot: ally 1, ally 2, foe 1, foe 2. When both sides have the species, prefix it: ally Charizard or foe Charizard."
+      },
+      "attacker_boosts": {
+       "type": "object",
+       "description": "Hypothetical stat stages for the attacker, such as {\"atk\": 2} after Swords Dance or {\"atk\": -1} after an Intimidate. Stats left out keep their live stage.",
+       "properties": {
+        "atk": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "def": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        }
+       },
+       "additionalProperties": false
+      },
+      "defender_boosts": {
+       "type": "object",
+       "description": "Hypothetical stat stages for the defender. Stats left out keep their live stage.",
+       "properties": {
+        "atk": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "def": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        }
+       },
+       "additionalProperties": false
+      },
+      "weather": {
+       "type": "string",
+       "description": "Hypothetical weather: sun, rain, sand, snow, or none. Defaults to the live weather; use it to see a Chlorophyll or sun-boosted line before Drought is up."
+      },
+      "terrain": {
+       "type": "string",
+       "description": "Hypothetical terrain: electric, grassy, misty, psychic, or none. Defaults to the live terrain."
+      },
+      "attacker_mega": {
+       "type": "boolean",
+       "description": "Evaluate the attacker after Mega Evolving."
+      },
+      "defender_mega": {
+       "type": "boolean",
+       "description": "Evaluate the defender after Mega Evolving."
+      },
+      "attacker_replaces": {
+       "type": "string",
+       "description": "For a benched attacker, the same-side active Pokémon or slot it replaces."
+      },
+      "defender_replaces": {
+       "type": "string",
+       "description": "For a benched defender, the same-side active Pokémon or slot it replaces."
+      }
+     },
+     "type": "object",
+     "required": [
+      "attacker",
+      "defender",
+      "move"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "compare_action_order",
+    "description": "Compare two Pokémon (active, benched, or any two registered at team preview) using live Speed state without revealing hidden EVs. Applies visible items, boosts, status, Tailwind, weather abilities, Trick Room, and move priority including ability modifiers (Prankster, Gale Wings, Triage, Grassy Glide, Stall, Mycelium Might) and priority items (Quick Claw, Lagging Tail); also explains Encore timing and redundant locks. A Speed change takes effect the moment it happens, so to see the order after a Tailwind, Icy Wind, Trick Room or weather that goes up earlier in the same turn, set the matching hypothetical. Pass \"switch\" as a move to time a switch-out, which resolves before moves.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "first": {
+       "type": "string",
+       "description": "Species name (active or benched) or ally/foe slot, such as ally 1."
+      },
+      "second": {
+       "type": "string",
+       "description": "Species name (active or benched) or ally/foe slot, such as foe 2."
+      },
+      "first_move": {
+       "type": "string",
+       "description": "Optional move being considered for the first Pokémon, or \"switch\" for switching out."
+      },
+      "second_move": {
+       "type": "string",
+       "description": "Optional move being considered for the second Pokémon, or \"switch\" for switching out."
+      },
+      "first_mega": {
+       "type": "boolean",
+       "description": "Compare the first Pokémon after a legal Mega Evolution with its known stone."
+      },
+      "second_mega": {
+       "type": "boolean",
+       "description": "Compare the second Pokémon after a legal Mega Evolution with its known stone."
+      },
+      "weather": {
+       "type": "string",
+       "description": "Hypothetical weather: sun, rain, sand, snow, or none. Defaults to the live weather."
+      },
+      "first_speed_stage": {
+       "type": "integer",
+       "minimum": -6,
+       "maximum": 6,
+       "description": "Hypothetical Speed stage for the first Pokémon, such as -1 after Icy Wind or +1 after Dragon Dance. Defaults to its live stage."
+      },
+      "second_speed_stage": {
+       "type": "integer",
+       "minimum": -6,
+       "maximum": 6,
+       "description": "Hypothetical Speed stage for the second Pokémon."
+      },
+      "first_tailwind": {
+       "type": "boolean",
+       "description": "Whether Tailwind is up on the first Pokémon's side for this comparison. Defaults to the live field."
+      },
+      "second_tailwind": {
+       "type": "boolean",
+       "description": "Whether Tailwind is up on the second Pokémon's side for this comparison."
+      },
+      "trick_room": {
+       "type": "boolean",
+       "description": "Whether Trick Room is up for this comparison. Defaults to the live field."
+      }
+     },
+     "required": [
+      "first",
+      "second"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "read_battle_history",
+    "description": "Read your private Showdown observations, submitted choices and stated reasons, and reviews from a game in this series, including earlier games and turns omitted from the prompt. Submitted choices may have been rejected by Showdown. For another page, repeat the same game_number and from_turn with the returned next_offset.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "game_number": {
+       "type": "integer",
+       "minimum": 1
+      },
+      "from_turn": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "First turn to include; defaults to 0."
+      },
+      "offset": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "Character offset; defaults to 0."
+      }
+     },
+     "required": [
+      "game_number"
+     ],
+     "additionalProperties": false
+    }
+   }
+  ],
+  "submission": {
+   "name": "submit_review",
+   "description": "Submit your decision. Validation errors are returned so you can correct and resubmit it. After acceptance, end your reply.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "summary": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Your assessment of the game."
+     },
+     "adjustment": {
+      "description": "What, if anything, to keep or change next game.",
+      "type": "string",
+      "maxLength": 2000
+     },
+     "notebook": {
+      "type": "object",
+      "properties": {
+       "team_playbook": {
+        "description": "Transferable facts about piloting your team; kept across opponents.",
+        "type": "string",
+        "maxLength": 3500
+       },
+       "series_memory": {
+        "description": "Facts and tendencies specific to this opponent; cleared on a new opponent.",
+        "type": "string",
+        "maxLength": 3000
+       },
+       "next_game_plan": {
+        "description": "Immediate plan and contingencies for the next game; cleared on a new opponent.",
+        "type": "string",
+        "maxLength": 1500
+       }
+      },
+      "additionalProperties": false,
+      "description": "Private notebook update. Each supplied string replaces that field; omitted fields stay unchanged; an empty string clears a field."
+     }
+    },
+    "required": [
+     "summary"
+    ],
+    "additionalProperties": false
+   }
+  }
+ },
+ "submit_offer": {
+  "system": "You are external:probe, manager of a franchise in a Pokémon VGC draft league played in the format gen9championsvgc2026regmcbo3.\nThe franchise is yours for the whole season: you draft its roster, revie",
+  "tools": [
+   {
+    "name": "lookup_species",
+    "description": "Look up a species: typing, abilities, base stats, forme, Mega Stone outcomes, and optional nature-based raw Speed range.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      },
+      "item": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "nature": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_move",
+    "description": "Look up a move: type, category, power, accuracy, priority, target, and effect text.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_item",
+    "description": "Look up an item's effect text and mega-stone behaviour.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_learnset",
+    "description": "List every move a species can legally learn in this format's ruleset.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_ability",
+    "description": "Look up an ability's effect text.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "calculate_stats",
+    "description": "Calculate exact raw stats for a proposed spread using this format simulator. Champions Stat Points cap at 32 per stat and 66 total; classic EV formats cap at 252 per stat and 510 total.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "species": {
+       "type": "string"
+      },
+      "nature": {
+       "type": "string"
+      },
+      "evs": {
+       "type": "object",
+       "description": "Format investment values: Stat Points in Champions, EVs elsewhere. Omitted stats are 0.",
+       "properties": {
+        "hp": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "atk": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "def": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": 0
+        }
+       },
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "species",
+      "nature",
+      "evs"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_matchup",
+    "description": "Look up type-chart effectiveness for an attacking move or type into a defending species. Returns immunity/SE/NVE multipliers only, not damage. With only attacker and defender species, reports each of the attacker types into the defender.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "attacker": {
+       "type": "string",
+       "description": "Attacking species, required for form-dependent moves such as Raging Bull."
+      },
+      "attacker_type": {
+       "type": "string",
+       "description": "Attacking type, or omit when move is provided."
+      },
+      "move": {
+       "type": "string",
+       "description": "Move name; its contextual type is used when provided."
+      },
+      "defender": {
+       "type": "string",
+       "description": "Defending species name."
+      }
+     },
+     "required": [
+      "defender"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "estimate_damage",
+    "description": "Conditional hit outcomes computed by this format's battle engine at level 50 in doubles. Damage percentages and survival outcomes evaluate stat, damage-roll, and hit-count endpoints; they do not establish exhaustive KO certainty. Selected hits are assumed to connect. Action-level effects such as protection, redirection, and charging, and multi-target hit allocation are not resolved. Supplied abilities, items, stat stages, status, screens, weather, terrain, Helping Hand, spread reduction, and variable-power moves feed the native hit loop; omitted factors are neutral. During a battle, live board and revealed team-sheet facts override arguments, including active allies and fainted counts. The result lists applied factors. Critical hits require an explicit flag. Hazard chip and prior activation state such as a Flash Fire charge, Metronome count, or Rage Fist hit tally are not modeled. Exact own battle stats narrow the endpoints; unknown opposing stats use legal investment ranges, narrowed by revealed nature. Only stats used by the move are read; implausible values fall back to legal ranges with a note.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "attacker": {
+       "type": "string"
+      },
+      "defender": {
+       "type": "string"
+      },
+      "move": {
+       "type": "string"
+      },
+      "attacker_ability": {
+       "type": "string",
+       "description": "Applied exactly by the engine. Omit for a neutral, no-effect ability."
+      },
+      "defender_ability": {
+       "type": "string",
+       "description": "Applied exactly by the engine, including immunities and absorb abilities. Omit for a neutral, no-effect ability."
+      },
+      "attacker_stats": {
+       "type": "object",
+       "description": "Optional exact raw stats from your own build. Only the stat this move attacks with is read; other keys are ignored, so never pad unknown stats with placeholder values.",
+       "properties": {
+        "atk": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "def": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spa": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spd": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spe": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        }
+       },
+       "additionalProperties": false
+      },
+      "defender_stats": {
+       "type": "object",
+       "description": "Optional exact raw stats when the defender is your own Pokémon. HP also drives fixed and HP-scaled damage; other keys beyond hp and the stat this move targets are ignored.",
+       "properties": {
+        "hp": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "atk": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "def": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spa": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spd": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spe": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        }
+       },
+       "additionalProperties": false
+      },
+      "attacker_boosts": {
+       "type": "object",
+       "description": "Current stat stages on the attacker, -6 to +6.",
+       "properties": {
+        "atk": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "def": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        }
+       },
+       "additionalProperties": false
+      },
+      "defender_boosts": {
+       "type": "object",
+       "description": "Current stat stages on the defender, -6 to +6.",
+       "properties": {
+        "atk": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "def": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        }
+       },
+       "additionalProperties": false
+      },
+      "attacker_status": {
+       "type": "string",
+       "enum": [
+        "brn",
+        "par",
+        "psn",
+        "tox",
+        "slp",
+        "frz"
+       ],
+       "description": "Status on the attacker; burn, Guts, Facade, and similar interactions are engine-computed."
+      },
+      "defender_status": {
+       "type": "string",
+       "enum": [
+        "brn",
+        "par",
+        "psn",
+        "tox",
+        "slp",
+        "frz"
+       ],
+       "description": "Status on the defender, for moves like Hex."
+      },
+      "defender_screens": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "enum": [
+         "reflect",
+         "lightscreen",
+         "auroraveil"
+        ]
+       },
+       "description": "Screens up on the defender's side."
+      },
+      "terrain": {
+       "type": "string",
+       "description": "electric | grassy | misty | psychic"
+      },
+      "weather": {
+       "type": "string",
+       "description": "sun | rain | sand | snow | desolateland | primordialsea"
+      },
+      "helping_hand": {
+       "type": "boolean",
+       "description": "An ally used Helping Hand on the attacker this turn (1.5x)."
+      },
+      "is_critical_hit": {
+       "type": "boolean",
+       "description": "Compute as a critical hit: 1.5x, ignoring the defender's positive stages and screens."
+      },
+      "attacker_hits_taken": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "Direct hits the attacker has taken since it entered, which scale Rage Fist; defaults to the live count, which resets when it switches out."
+      },
+      "attacker_hp_percent": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 100,
+       "description": "Current attacker HP percentage, for HP-scaling moves and pinch abilities."
+      },
+      "defender_hp_percent": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 100,
+       "description": "Current defender HP percentage shown in battle; also gates HP-dependent defensive abilities."
+      },
+      "attacker_item": {
+       "type": "string",
+       "description": "Any item; the engine applies its real effect."
+      },
+      "defender_item": {
+       "type": "string",
+       "description": "Any item; the engine applies its real effect."
+      },
+      "attacker_nature": {
+       "type": "string"
+      },
+      "defender_nature": {
+       "type": "string"
+      },
+      "is_spread_hit": {
+       "type": "boolean",
+       "description": "True when the move hits more than one Pokémon (0.75x in doubles). Defaults false outside a live battle because no second target is known; the live harness derives this from the board."
+      }
+     },
+     "required": [
+      "attacker",
+      "defender",
+      "move"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "search_board",
+    "description": "Filter and sort the board. During the draft, defaults to your currently legal picks; otherwise searches the full board. Mega entries show both forms; their stone is required in either form. Type, ability, stat and move filters must match together on one form.",
+    "parameters": {
+     "$schema": "https://json-schema.org/draft/2020-12/schema",
+     "type": "object",
+     "properties": {
+      "types": {
+       "default": [],
+       "description": "Every listed type must occur on the same form. [\"Fire\",\"Flying\"] requires both.",
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "max_cost": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "min_cost": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "learns": {
+       "description": "Move legally learned in this format.",
+       "type": "string"
+      },
+      "ability": {
+       "description": "Ability in any slot of the base or Mega form.",
+       "type": "string"
+      },
+      "min_bst": {
+       "description": "Minimum base stat total of the matching form.",
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "sort": {
+       "default": "cost",
+       "description": "cost: high to low; bst: highest matching form first; name: A to Z.",
+       "type": "string",
+       "enum": [
+        "cost",
+        "bst",
+        "name"
+       ]
+      },
+      "limit": {
+       "default": 40,
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 100
+      },
+      "include_unavailable": {
+       "default": false,
+       "description": "During the draft, include entries that are not legal picks for you.",
+       "type": "boolean"
+      }
+     },
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "read_memory_page",
+    "description": "One of your own memory pages in full. Page names are listed in your prompt.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string",
+       "description": "The page name."
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   }
+  ],
+  "submission": {
+   "name": "submit_offer",
+   "description": "Submit your decision. Validation errors are returned so you can correct and resubmit it. After acceptance, end your reply.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "offer": {
+      "description": "One-for-one offer; null or omitted makes no further offer this window.",
+      "anyOf": [
+       {
+        "type": "object",
+        "properties": {
+         "to": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Entrant index of the coach you are offering to."
+         },
+         "give": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Board id of the Pokémon you give from your roster."
+         },
+         "get": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Board id of the Pokémon you receive from their roster."
+         },
+         "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "Public message the counterparty reads alongside the terms."
+         }
+        },
+        "required": [
+         "to",
+         "give",
+         "get",
+         "message"
+        ],
+        "additionalProperties": false
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "reasoning": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Concise private reason, recorded as evidence and never shown to other coaches."
+     }
+    },
+    "additionalProperties": false
+   }
+  }
+ },
+ "submit_free_agency": {
+  "system": "You are external:probe, manager of a franchise in a Pokémon VGC draft league played in the format gen9championsvgc2026regmcbo3.\nThe franchise is yours for the whole season: you draft its roster, revie",
+  "tools": [
+   {
+    "name": "lookup_species",
+    "description": "Look up a species: typing, abilities, base stats, forme, Mega Stone outcomes, and optional nature-based raw Speed range.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      },
+      "item": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "nature": {
+       "type": [
+        "string",
+        "null"
+       ]
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_move",
+    "description": "Look up a move: type, category, power, accuracy, priority, target, and effect text.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_item",
+    "description": "Look up an item's effect text and mega-stone behaviour.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_learnset",
+    "description": "List every move a species can legally learn in this format's ruleset.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_ability",
+    "description": "Look up an ability's effect text.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "calculate_stats",
+    "description": "Calculate exact raw stats for a proposed spread using this format simulator. Champions Stat Points cap at 32 per stat and 66 total; classic EV formats cap at 252 per stat and 510 total.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "species": {
+       "type": "string"
+      },
+      "nature": {
+       "type": "string"
+      },
+      "evs": {
+       "type": "object",
+       "description": "Format investment values: Stat Points in Champions, EVs elsewhere. Omitted stats are 0.",
+       "properties": {
+        "hp": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "atk": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "def": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": 0
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": 0
+        }
+       },
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "species",
+      "nature",
+      "evs"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "lookup_matchup",
+    "description": "Look up type-chart effectiveness for an attacking move or type into a defending species. Returns immunity/SE/NVE multipliers only, not damage. With only attacker and defender species, reports each of the attacker types into the defender.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "attacker": {
+       "type": "string",
+       "description": "Attacking species, required for form-dependent moves such as Raging Bull."
+      },
+      "attacker_type": {
+       "type": "string",
+       "description": "Attacking type, or omit when move is provided."
+      },
+      "move": {
+       "type": "string",
+       "description": "Move name; its contextual type is used when provided."
+      },
+      "defender": {
+       "type": "string",
+       "description": "Defending species name."
+      }
+     },
+     "required": [
+      "defender"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "estimate_damage",
+    "description": "Conditional hit outcomes computed by this format's battle engine at level 50 in doubles. Damage percentages and survival outcomes evaluate stat, damage-roll, and hit-count endpoints; they do not establish exhaustive KO certainty. Selected hits are assumed to connect. Action-level effects such as protection, redirection, and charging, and multi-target hit allocation are not resolved. Supplied abilities, items, stat stages, status, screens, weather, terrain, Helping Hand, spread reduction, and variable-power moves feed the native hit loop; omitted factors are neutral. During a battle, live board and revealed team-sheet facts override arguments, including active allies and fainted counts. The result lists applied factors. Critical hits require an explicit flag. Hazard chip and prior activation state such as a Flash Fire charge, Metronome count, or Rage Fist hit tally are not modeled. Exact own battle stats narrow the endpoints; unknown opposing stats use legal investment ranges, narrowed by revealed nature. Only stats used by the move are read; implausible values fall back to legal ranges with a note.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "attacker": {
+       "type": "string"
+      },
+      "defender": {
+       "type": "string"
+      },
+      "move": {
+       "type": "string"
+      },
+      "attacker_ability": {
+       "type": "string",
+       "description": "Applied exactly by the engine. Omit for a neutral, no-effect ability."
+      },
+      "defender_ability": {
+       "type": "string",
+       "description": "Applied exactly by the engine, including immunities and absorb abilities. Omit for a neutral, no-effect ability."
+      },
+      "attacker_stats": {
+       "type": "object",
+       "description": "Optional exact raw stats from your own build. Only the stat this move attacks with is read; other keys are ignored, so never pad unknown stats with placeholder values.",
+       "properties": {
+        "atk": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "def": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spa": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spd": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spe": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        }
+       },
+       "additionalProperties": false
+      },
+      "defender_stats": {
+       "type": "object",
+       "description": "Optional exact raw stats when the defender is your own Pokémon. HP also drives fixed and HP-scaled damage; other keys beyond hp and the stat this move targets are ignored.",
+       "properties": {
+        "hp": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "atk": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "def": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spa": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spd": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        },
+        "spe": {
+         "type": "number",
+         "exclusiveMinimum": 0
+        }
+       },
+       "additionalProperties": false
+      },
+      "attacker_boosts": {
+       "type": "object",
+       "description": "Current stat stages on the attacker, -6 to +6.",
+       "properties": {
+        "atk": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "def": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        }
+       },
+       "additionalProperties": false
+      },
+      "defender_boosts": {
+       "type": "object",
+       "description": "Current stat stages on the defender, -6 to +6.",
+       "properties": {
+        "atk": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "def": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spa": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spd": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        },
+        "spe": {
+         "type": "integer",
+         "minimum": -6,
+         "maximum": 6
+        }
+       },
+       "additionalProperties": false
+      },
+      "attacker_status": {
+       "type": "string",
+       "enum": [
+        "brn",
+        "par",
+        "psn",
+        "tox",
+        "slp",
+        "frz"
+       ],
+       "description": "Status on the attacker; burn, Guts, Facade, and similar interactions are engine-computed."
+      },
+      "defender_status": {
+       "type": "string",
+       "enum": [
+        "brn",
+        "par",
+        "psn",
+        "tox",
+        "slp",
+        "frz"
+       ],
+       "description": "Status on the defender, for moves like Hex."
+      },
+      "defender_screens": {
+       "type": "array",
+       "items": {
+        "type": "string",
+        "enum": [
+         "reflect",
+         "lightscreen",
+         "auroraveil"
+        ]
+       },
+       "description": "Screens up on the defender's side."
+      },
+      "terrain": {
+       "type": "string",
+       "description": "electric | grassy | misty | psychic"
+      },
+      "weather": {
+       "type": "string",
+       "description": "sun | rain | sand | snow | desolateland | primordialsea"
+      },
+      "helping_hand": {
+       "type": "boolean",
+       "description": "An ally used Helping Hand on the attacker this turn (1.5x)."
+      },
+      "is_critical_hit": {
+       "type": "boolean",
+       "description": "Compute as a critical hit: 1.5x, ignoring the defender's positive stages and screens."
+      },
+      "attacker_hits_taken": {
+       "type": "integer",
+       "minimum": 0,
+       "description": "Direct hits the attacker has taken since it entered, which scale Rage Fist; defaults to the live count, which resets when it switches out."
+      },
+      "attacker_hp_percent": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 100,
+       "description": "Current attacker HP percentage, for HP-scaling moves and pinch abilities."
+      },
+      "defender_hp_percent": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 100,
+       "description": "Current defender HP percentage shown in battle; also gates HP-dependent defensive abilities."
+      },
+      "attacker_item": {
+       "type": "string",
+       "description": "Any item; the engine applies its real effect."
+      },
+      "defender_item": {
+       "type": "string",
+       "description": "Any item; the engine applies its real effect."
+      },
+      "attacker_nature": {
+       "type": "string"
+      },
+      "defender_nature": {
+       "type": "string"
+      },
+      "is_spread_hit": {
+       "type": "boolean",
+       "description": "True when the move hits more than one Pokémon (0.75x in doubles). Defaults false outside a live battle because no second target is known; the live harness derives this from the board."
+      }
+     },
+     "required": [
+      "attacker",
+      "defender",
+      "move"
+     ],
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "search_board",
+    "description": "Filter and sort the board. During the draft, defaults to your currently legal picks; otherwise searches the full board. Mega entries show both forms; their stone is required in either form. Type, ability, stat and move filters must match together on one form.",
+    "parameters": {
+     "$schema": "https://json-schema.org/draft/2020-12/schema",
+     "type": "object",
+     "properties": {
+      "types": {
+       "default": [],
+       "description": "Every listed type must occur on the same form. [\"Fire\",\"Flying\"] requires both.",
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "max_cost": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "min_cost": {
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "learns": {
+       "description": "Move legally learned in this format.",
+       "type": "string"
+      },
+      "ability": {
+       "description": "Ability in any slot of the base or Mega form.",
+       "type": "string"
+      },
+      "min_bst": {
+       "description": "Minimum base stat total of the matching form.",
+       "type": "integer",
+       "minimum": -9007199254740991,
+       "maximum": 9007199254740991
+      },
+      "sort": {
+       "default": "cost",
+       "description": "cost: high to low; bst: highest matching form first; name: A to Z.",
+       "type": "string",
+       "enum": [
+        "cost",
+        "bst",
+        "name"
+       ]
+      },
+      "limit": {
+       "default": 40,
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 100
+      },
+      "include_unavailable": {
+       "default": false,
+       "description": "During the draft, include entries that are not legal picks for you.",
+       "type": "boolean"
+      }
+     },
+     "additionalProperties": false
+    }
+   },
+   {
+    "name": "read_memory_page",
+    "description": "One of your own memory pages in full. Page names are listed in your prompt.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "name": {
+       "type": "string",
+       "description": "The page name."
+      }
+     },
+     "required": [
+      "name"
+     ],
+     "additionalProperties": false
+    }
+   }
+  ],
+  "submission": {
+   "name": "submit_free_agency",
+   "description": "Submit your decision. Validation errors are returned so you can correct and resubmit it. After acceptance, end your reply.",
+   "parameters": {
+    "type": "object",
+    "properties": {
+     "swaps": {
+      "maxItems": 20,
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "drop": {
+         "type": "string",
+         "minLength": 1,
+         "description": "Board id of a Pokémon on your current roster to release."
+        },
+        "add": {
+         "type": "string",
+         "minLength": 1,
+         "description": "Board id of an undrafted free agent to sign in its place."
+        }
+       },
+       "required": [
+        "drop",
+        "add"
+       ],
+       "additionalProperties": false
+      },
+      "description": "Every swap this window, applied together; [] keeps your roster. Each spends one season swap."
+     },
+     "reasoning": {
+      "type": "string",
+      "maxLength": 2000,
+      "description": "Concise private reason, recorded as evidence and never shown to other coaches."
+     }
+    },
+    "required": [
+     "swaps"
+    ],
+    "additionalProperties": false
+   }
+  }
+ }
+}

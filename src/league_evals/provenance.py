@@ -35,11 +35,7 @@ def engine_provenance(directory: Path) -> dict[str, Any]:
         "runtime_sha256": runtime,
         "showdown_runtime_sha256": simulator,
     }
-    return {
-        **hashes,
-        "build_verified": all(manifest.get(k) == v for k, v in hashes.items()),
-        "engine_patch_sha256": manifest.get("patch_sha256"),
-    }
+    return {**hashes, "build_verified": all(manifest.get(k) == v for k, v in hashes.items())}
 
 
 def write_build_manifest(directory: Path, lock_path: Path) -> None:
@@ -55,12 +51,5 @@ def write_build_manifest(directory: Path, lock_path: Path) -> None:
     if base != lock["commit"]:
         raise ValueError("engine base commit does not match engine.lock.json")
     manifest_path.write_text(
-        json.dumps(
-            {
-                **{k: v for k, v in provenance.items() if k.endswith("sha256")},
-                "patch_sha256": lock["patch"]["sha256"],
-            },
-            indent=2,
-        )
-        + "\n"
+        json.dumps({k: v for k, v in provenance.items() if k.endswith("sha256")}, indent=2) + "\n"
     )

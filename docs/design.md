@@ -26,13 +26,16 @@ to interleave them; each sample has a fresh engine process and conversation.
 | `full` | Visible state, legal menus, rendered speeds/type reference, rules/stat lookups, damage/order calculators |
 | `no_calculators` | The same interface with the two calculators removed |
 
-The prompt states which tools are available. This estimates the interface condition's effect,
-including its accurate description. Calculator-use frequency alone cannot establish causation:
-models may choose to check the hardest decisions. Greedy keeps the same calculator in both arms.
+Both arms get the league coach's own prompt. The `no_calculators` arm adds one line saying the two
+calculators are unavailable and that instructions mentioning them do not apply. This estimates the
+interface condition's effect, including that description. Calculator-use frequency alone cannot
+establish causation: models may choose to check the hardest decisions. The opponent policy plays
+from the live simulator and is the same in both arms.
 
-The no-model default policy is a negative control. Its 88.9% win rate against random exposes that
-opponent's weakness; 5.6% against greedy establishes separation from this particular weak policy.
-Neither result establishes difficulty for a competent human or discrimination among stronger models.
+The no-model default policy is a negative control. Its 91.1% win rate against random exposes that
+opponent's weakness; 15.6% against greedy and 5.0% against the rollout search establish separation
+from this particular weak policy. None of these establishes difficulty for a competent human or
+discrimination among stronger models.
 
 ## Outcomes and diagnostics
 

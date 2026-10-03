@@ -77,7 +77,7 @@ def vgc_note(
         dataset=MemoryDataset(samples, name=notes),
         solver=play_position(max_generations=max_generations),
         scorer=[position_regret(), note_trust(), discipline(), efficiency()],
-        version=1,
+        version=2,
         metadata={
             "notes": notes,
             "positions": claims["positions"],

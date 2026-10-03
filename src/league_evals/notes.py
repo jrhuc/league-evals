@@ -56,27 +56,27 @@ def load_notes(name: str) -> dict:
     return json.loads(path.read_text())
 
 
-def ambiguous_species(event: dict) -> bool:
+def ambiguous_species(view: dict) -> bool:
     foes = {
         (match["foe"], match["defender"])
-        for menu in event["menus"]
+        for menu in view["menus"]
         for label in menu
         if (match := FOE_LABEL.match(label))
     }
-    names = [*event["slot_names"], *(species for _, species in foes)]
+    names = [*view["slot_names"], *(species for _, species in foes)]
     return len(names) != len(set(names))
 
 
-def candidates(event: dict) -> list[dict]:
-    if ambiguous_species(event):
+def candidates(view: dict) -> list[dict]:
+    if ambiguous_species(view):
         return []
     result = []
-    for slot, menu in enumerate(event["menus"]):
+    for slot, menu in enumerate(view["menus"]):
         for label in menu:
             match = FOE_LABEL.fullmatch(label)
             if match is None:
                 continue
-            moves = event["request"]["active"][slot]["moves"]
+            moves = view["request"]["active"][slot]["moves"]
             index = next(
                 (i for i, move in enumerate(moves, 1) if move["move"] == match["move"]), None
             )
@@ -86,7 +86,7 @@ def candidates(event: dict) -> list[dict]:
             result.append(
                 {
                     "slot": slot,
-                    "attacker": event["slot_names"][slot],
+                    "attacker": view["slot_names"][slot],
                     "move": match["move"],
                     "defender": match["defender"],
                     "foe": foe,
@@ -119,15 +119,16 @@ def note_block(source: str, text: str) -> str:
     return "\n\n" + SOURCES[source] + "\n" + text
 
 
-async def select_claim(bridge: LeagueBridge, focal: str, event: dict) -> dict | None:
+async def select_claim(bridge: LeagueBridge, event: dict) -> dict | None:
     rows = []
     factor = RULE["factor"]
-    for candidate in candidates(event):
+    for candidate in candidates(event["decision"]):
         try:
             text = await bridge.request(
-                "call",
+                "tool",
                 {
-                    "pid": focal,
+                    "pid": event["pid"],
+                    "exchange": event["exchange"]["id"],
                     "name": "estimate_damage",
                     "arguments": {k: candidate[k] for k in ("attacker", "defender", "move")},
                 },
@@ -197,7 +198,7 @@ async def build_notes(positions_name: str, name: str, jobs: int = 4) -> dict:
     async def build(position: dict) -> tuple[dict | None, str | None]:
         async with semaphore:
             source = dataset["games"][position["game"]]["source"]
-            bridge = await LeagueBridge.open(source["format"], "open")
+            bridge = await LeagueBridge.open(source["format"])
             try:
                 for key in ("harness_commit", "showdown_commit"):
                     if dataset["provenance"].get(key) != bridge.hello.get(key):
@@ -205,9 +206,9 @@ async def build_notes(positions_name: str, name: str, jobs: int = 4) -> dict:
                             f"positions and engine {key} differ; re-export or restore engine"
                         )
                 event = await resume_position(bridge, source, position)
-                if ambiguous_species(event):
+                if ambiguous_species(event["decision"]):
                     return None, "ambiguous_species"
-                claim = await select_claim(bridge, position["focal"], event)
+                claim = await select_claim(bridge, event)
                 return (
                     ({"position": position["id"], **claim}, None)
                     if claim

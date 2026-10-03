@@ -406,6 +406,55 @@ def value_command(
     return None
 
 
+def verify_dataset(dataset: dict, jobs: int = 1) -> dict:
+    settings = {**dataset["selection"]["fine"], "salt": dataset["selection"]["salts"]["score"]}
+    only = defaultdict(list)
+    for position in dataset["positions"]:
+        only[position["game"]].append(
+            {
+                "pid": position["focal"],
+                "choice_index": position["choice_index"],
+                "commands": list(position["values"]),
+            }
+        )
+    games = [{"id": name, **game} for name, game in dataset["games"].items()]
+    rows = value_games(games, settings, jobs, only=dict(only))
+    recomputed = {
+        decision_key(row): {action["command"]: action for action in row["actions"]}
+        for row in rows
+        if row["kind"] == "position"
+    }
+    values = 0
+    mismatches = []
+    for position in dataset["positions"]:
+        table = recomputed.get((position["game"], position["focal"], position["choice_index"]), {})
+        for command, stored in position["values"].items():
+            values += 1
+            fresh = table.get(command)
+            if fresh is None or any(fresh[k] != stored[k] for k in ("value", "explored")):
+                mismatches.append(
+                    {
+                        "position": position["id"],
+                        "command": command,
+                        "stored": {k: stored[k] for k in ("value", "explored")},
+                        "recomputed": fresh and {k: fresh[k] for k in ("value", "explored")},
+                    }
+                )
+    return {"positions": len(dataset["positions"]), "values": values, "mismatches": mismatches}
+
+
+def restamp(dataset: dict, values: int) -> dict:
+    (hello,) = request_sync([("open", {"format": dataset["format"]})])
+    return {
+        **dataset,
+        "provenance": {
+            **hello,
+            **engine_provenance(engine_dir()),
+            "revalued": {"from": dataset["provenance"]["harness_commit"], "values": values},
+        },
+    }
+
+
 def summary(rows: list[dict | None]) -> dict:
     scored = [r for r in rows if r is not None]
     return {
@@ -556,6 +605,10 @@ def main() -> None:
     reports = commands.add_parser("report")
     reports.add_argument("log_dir", type=Path)
     reports.add_argument("--json", action="store_true")
+    verify = commands.add_parser("verify")
+    verify.add_argument("name")
+    verify.add_argument("--jobs", type=int, default=1)
+    verify.add_argument("--restamp", action="store_true")
     args = parser.parse_args()
     try:
         if args.command == "build":
@@ -576,6 +629,22 @@ def main() -> None:
             with path.open("x") as output:
                 output.write(json.dumps(dataset, indent=1) + "\n")
             print(path)
+        elif args.command == "verify":
+            dataset = load_positions(args.name)
+            result = verify_dataset(dataset, args.jobs)
+            mismatches = result["mismatches"]
+            for row in mismatches[:20]:
+                print(json.dumps(row))
+            print(
+                f"positions: {result['positions']}; values compared: {result['values']}; "
+                f"mismatches: {len(mismatches)}"
+            )
+            if mismatches:
+                raise SystemExit(1)
+            if args.restamp:
+                path = position_path(args.name)
+                path.write_text(json.dumps(restamp(dataset, result["values"]), indent=1) + "\n")
+                print(f"restamped {path}")
         else:
             result = (
                 baselines(load_positions(args.name))

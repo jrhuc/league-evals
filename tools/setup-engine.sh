@@ -12,30 +12,13 @@ target="$here/engine/ai-draft-league"
 if [ ! -d "$target/.git" ]; then git clone "$repo" "$target"; fi
 # Re-running is safe, but never overwrite an operator's engine changes.
 if [ "$(git -C "$target" rev-parse HEAD)" != "$commit" ]; then
-  if [ -n "$(git -C "$target" status --porcelain)" ]; then
+  if [ -n "$(git -C "$target" status --porcelain -- . ':!packages/league/eval-build.json')" ]; then
     echo "engine checkout has changes; use a fresh engine directory" >&2; exit 1
   fi
   git -C "$target" fetch --quiet origin "$commit"
   git -C "$target" checkout --quiet --detach "$commit"
 fi
-patch=$(python3 - "$here" <<'PY'
-import hashlib, json, pathlib, sys
-root = pathlib.Path(sys.argv[1])
-lock = json.loads((root / 'engine.lock.json').read_text())
-patch = root / lock['patch']['path']
-if hashlib.sha256(patch.read_bytes()).hexdigest() != lock['patch']['sha256']:
-    raise SystemExit('engine patch checksum mismatch')
-print(patch)
-PY
-)
-if git -C "$target" apply --check "$patch" 2>/dev/null; then
-  git -C "$target" apply "$patch"
-elif ! git -C "$target" apply --reverse --check "$patch" 2>/dev/null; then
-  echo "engine patch does not match this checkout" >&2; exit 1
-fi
 cd "$target"
-# Unapproved native builds (tree-sitter, @parcel/watcher) are unused by the bridge; skip, don't fail.
-grep -q '^strictDepBuilds:' pnpm-workspace.yaml || printf '\nstrictDepBuilds: false\n' >> pnpm-workspace.yaml
 pnpm install --frozen-lockfile
 pnpm --dir packages/league run setup:showdown
 pnpm --dir packages/league run build

@@ -31,14 +31,25 @@
  },
  "provenance": {
   "format": "gen9championsvgc2026regmcbo3",
-  "sheets": "open",
   "showdown_commit": "3ab832905b012da47c355009e141b1660fa36808",
-  "harness_commit": "88b2112f987805846964d40b2412004496b97268",
-  "source_sha256": "464b07221209de2c30f9e319e9a1ac6332aea5a75fd195d471177dd195ce10be",
-  "runtime_sha256": "9a21a396383f3d18ae670f5c66ed1ff975f24e45cea494977da0c9a7c2c43ecf",
-  "showdown_runtime_sha256": "9cc24c325f14e3e58a3ca8e6ee843dc2276a54b31701e9ea1489ce820ce59efb",
+  "harness_commit": "09324d679e269eed5ccd1dbf903d86395eacff76",
+  "seats": [
+   "external",
+   "random",
+   "greedy",
+   "search",
+   "search:fast",
+   "search:standard",
+   "search:deep"
+  ],
+  "source_sha256": "3827ad9016217b4cabe6495bb4901505261118a338e1b2f6c66df4c38ad92d2d",
+  "runtime_sha256": "a11e5e3d2b274e1d55082b714dab0e0f8a75462fa0eb9a30d1227e393def46fd",
+  "showdown_runtime_sha256": "37f5acd6e88111981dd2678f580a73c00d3a85baa2d40e37ae9b3a8730121e2d",
   "build_verified": true,
-  "engine_patch_sha256": "82bb7c0d77bd1f94431ecc45110265612641ac21000b9e44fbcf3c878b25ecb8"
+  "revalued": {
+   "from": "88b2112f987805846964d40b2412004496b97268",
+   "values": 2065
+  }
  },
  "games": {
   "f3d85e53af38-2": {

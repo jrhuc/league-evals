@@ -7,8 +7,8 @@ import asyncio
 import json
 from pathlib import Path
 
-from .battle import battle_samples, load_pool
-from .bridge import BridgeError, LeagueBridge
+from .battle import battle_samples, load_pool, policy_seat
+from .bridge import EXTERNAL, FORMAT, BridgeError, LeagueBridge, request_sync
 from .scorers import outcome_summary
 
 
@@ -37,36 +37,48 @@ async def default_game(metadata: dict, max_decisions: int = 200) -> dict:
     focal = metadata["focal_seat"]
     opponent = "p2" if focal == "p1" else "p1"
     try:
-        event = await bridge.request(
+        await bridge.request(
             "start",
             {
-                "format": metadata["format"],
                 "seed": metadata["seed"],
-                focal: {"name": "focal", "team": metadata["focal_packed"]},
-                opponent: {"name": "opponent", "team": metadata["opponent_packed"]},
-                "external": [focal],
-                "opponent": metadata["opponent_policy"],
-                "opponent_seed": metadata["seed"],
+                focal: {"name": "focal", "team": metadata["focal_packed"], "seat": EXTERNAL},
+                opponent: {
+                    "name": "opponent",
+                    "team": metadata["opponent_packed"],
+                    "seat": policy_seat(bridge.hello["seats"], metadata["opponent_policy"]),
+                },
+                "policy_seed": metadata["seed"],
             },
         )
         decisions = 0
         actions = []
-        while event["kind"] == "decision" and decisions < max_decisions:
-            decisions += 1
-            reply = await bridge.request("submit", {"pid": focal, "choices": "default"})
-            actions.append(reply["choice"])
-            event = reply["next"]
-        complete = event["kind"] == "end"
-        result = event.get("outcome")
+        result = None
+        while result is None:
+            event = await bridge.next_event()
+            if event["kind"] == "end":
+                result = event["outcome"]
+            elif event["kind"] == "decision":
+                if event["row"]["outcome"] == "accepted":
+                    actions.append(event["row"]["action"])
+            elif decisions == max_decisions:
+                break
+            else:
+                decisions += 1
+                await bridge.request(
+                    "abandon",
+                    {"pid": focal, "exchange": event["exchange"]["id"], "reason": "default policy"},
+                )
+        if result and result["error"]:
+            raise BridgeError("harness failed: " + result["error"])
         if result and any(line.startswith("|error|") for line in result["log"]):
             raise BridgeError("simulator failed: " + str(result["log"]))
         return {
             "policy": "harness-default",
             "metadata": metadata,
-            "complete": complete,
+            "complete": result is not None,
             "decisions": decisions,
             "actions": actions,
-            "scores": outcome_summary(result, focal) if complete else None,
+            "scores": outcome_summary(result, focal) if result else None,
             "outcome": result,
             "provenance": bridge.hello,
         }
@@ -119,7 +131,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pool", default="test")
     parser.add_argument("--seeds", default="1")
-    parser.add_argument("--opponent", choices=["greedy", "random"], default="greedy")
+    parser.add_argument("--opponent", default="search")
     parser.add_argument("--concurrency", type=int, default=2)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--summarise", nargs="+", type=Path, metavar="JSONL")
@@ -131,6 +143,11 @@ def main() -> None:
         parser.error("--output is required when running games")
     if args.concurrency < 1:
         parser.error("concurrency must be positive")
+    try:
+        (hello,) = request_sync([("open", {"format": FORMAT})])
+        policy_seat(hello["seats"], args.opponent)
+    except BridgeError as error:
+        parser.error(str(error))
     asyncio.run(run(args))
 
 

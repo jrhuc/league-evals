@@ -3,14 +3,25 @@
  "positions": "league-all",
  "provenance": {
   "format": "gen9championsvgc2026regmcbo3",
-  "sheets": "open",
   "showdown_commit": "3ab832905b012da47c355009e141b1660fa36808",
-  "harness_commit": "88b2112f987805846964d40b2412004496b97268",
-  "source_sha256": "464b07221209de2c30f9e319e9a1ac6332aea5a75fd195d471177dd195ce10be",
-  "runtime_sha256": "9a21a396383f3d18ae670f5c66ed1ff975f24e45cea494977da0c9a7c2c43ecf",
-  "showdown_runtime_sha256": "9cc24c325f14e3e58a3ca8e6ee843dc2276a54b31701e9ea1489ce820ce59efb",
+  "harness_commit": "09324d679e269eed5ccd1dbf903d86395eacff76",
+  "seats": [
+   "external",
+   "random",
+   "greedy",
+   "search",
+   "search:fast",
+   "search:standard",
+   "search:deep"
+  ],
+  "source_sha256": "3827ad9016217b4cabe6495bb4901505261118a338e1b2f6c66df4c38ad92d2d",
+  "runtime_sha256": "a11e5e3d2b274e1d55082b714dab0e0f8a75462fa0eb9a30d1227e393def46fd",
+  "showdown_runtime_sha256": "37f5acd6e88111981dd2678f580a73c00d3a85baa2d40e37ae9b3a8730121e2d",
   "build_verified": true,
-  "engine_patch_sha256": "82bb7c0d77bd1f94431ecc45110265612641ac21000b9e44fbcf3c878b25ecb8"
+  "revalued": {
+   "from": "88b2112f987805846964d40b2412004496b97268",
+   "values": 6056
+  }
  },
  "rule": {
   "factor": 2.0,
@@ -381,13 +392,13 @@
    "claim_line_true": "Grimmsnarl Spirit Break -> Baxcalibur-Mega 32.4-54.7%",
    "claim_line_false": "Grimmsnarl Spirit Break -> Baxcalibur-Mega 64.8-109.4% (KO)",
    "context_lines": [
-    "Rillaboom Wood Hammer -> Baxcalibur-Mega 23-38.9%",
+    "Rillaboom Wood Hammer -> Baxcalibur-Mega 17.6-30%",
     "Rillaboom Knock Off -> Corviknight 13.7-24.3%",
     "Rillaboom Knock Off -> Baxcalibur-Mega 12.6-22.1%"
    ],
    "factor": 2.0,
-   "true_text": "Damage calcs this turn: Grimmsnarl Spirit Break -> Baxcalibur-Mega 32.4-54.7%; Rillaboom Wood Hammer -> Baxcalibur-Mega 23-38.9%; Rillaboom Knock Off -> Corviknight 13.7-24.3%; Rillaboom Knock Off -> Baxcalibur-Mega 12.6-22.1%.",
-   "false_text": "Damage calcs this turn: Grimmsnarl Spirit Break -> Baxcalibur-Mega 64.8-109.4% (KO); Rillaboom Wood Hammer -> Baxcalibur-Mega 23-38.9%; Rillaboom Knock Off -> Corviknight 13.7-24.3%; Rillaboom Knock Off -> Baxcalibur-Mega 12.6-22.1%."
+   "true_text": "Damage calcs this turn: Grimmsnarl Spirit Break -> Baxcalibur-Mega 32.4-54.7%; Rillaboom Wood Hammer -> Baxcalibur-Mega 17.6-30%; Rillaboom Knock Off -> Corviknight 13.7-24.3%; Rillaboom Knock Off -> Baxcalibur-Mega 12.6-22.1%.",
+   "false_text": "Damage calcs this turn: Grimmsnarl Spirit Break -> Baxcalibur-Mega 64.8-109.4% (KO); Rillaboom Wood Hammer -> Baxcalibur-Mega 17.6-30%; Rillaboom Knock Off -> Corviknight 13.7-24.3%; Rillaboom Knock Off -> Baxcalibur-Mega 12.6-22.1%."
   },
   {
    "position": "249a45088c50-3-p2-4",
@@ -429,11 +440,11 @@
    "context_lines": [
     "Rotom-Heat Thunderbolt -> Pelipper 172.5-340.7% (KO)",
     "Excadrill-Mega High Horsepower -> Garchomp 36.7-65.6% (KO on a high roll)",
-    "Excadrill-Mega Iron Head -> Garchomp 31.2-55.7% (KO on a high roll)"
+    "Rotom-Heat Overheat -> Pelipper 30.5-61.5%"
    ],
    "factor": 2.0,
-   "true_text": "Damage calcs this turn: Rotom-Heat Thunderbolt -> Pelipper 172.5-340.7% (KO); Excadrill-Mega High Horsepower -> Garchomp 36.7-65.6% (KO on a high roll); Excadrill-Mega Iron Head -> Garchomp 31.2-55.7% (KO on a high roll); Rotom-Heat Overheat -> Garchomp 21.4-38.8%.",
-   "false_text": "Damage calcs this turn: Rotom-Heat Thunderbolt -> Pelipper 172.5-340.7% (KO); Rotom-Heat Overheat -> Garchomp 42.8-77.6% (KO); Excadrill-Mega High Horsepower -> Garchomp 36.7-65.6% (KO on a high roll); Excadrill-Mega Iron Head -> Garchomp 31.2-55.7% (KO on a high roll)."
+   "true_text": "Damage calcs this turn: Rotom-Heat Thunderbolt -> Pelipper 172.5-340.7% (KO); Excadrill-Mega High Horsepower -> Garchomp 36.7-65.6% (KO on a high roll); Rotom-Heat Overheat -> Pelipper 30.5-61.5%; Rotom-Heat Overheat -> Garchomp 21.4-38.8%.",
+   "false_text": "Damage calcs this turn: Rotom-Heat Thunderbolt -> Pelipper 172.5-340.7% (KO); Rotom-Heat Overheat -> Garchomp 42.8-77.6% (KO); Excadrill-Mega High Horsepower -> Garchomp 36.7-65.6% (KO on a high roll); Rotom-Heat Overheat -> Pelipper 30.5-61.5%."
   },
   {
    "position": "3394adcc72f7-2-p2-9",
@@ -452,11 +463,11 @@
    "context_lines": [
     "Rotom-Heat Thunderbolt -> Pelipper 172.5-340.7% (KO)",
     "Excadrill-Mega High Horsepower -> Garchomp 36.7-65.6% (KO on a high roll)",
-    "Excadrill-Mega Iron Head -> Garchomp 31.2-55.7% (KO on a high roll)"
+    "Rotom-Heat Overheat -> Pelipper 30.5-61.5%"
    ],
    "factor": 2.0,
-   "true_text": "Damage calcs this turn: Rotom-Heat Thunderbolt -> Pelipper 172.5-340.7% (KO); Excadrill-Mega High Horsepower -> Garchomp 36.7-65.6% (KO on a high roll); Excadrill-Mega Iron Head -> Garchomp 31.2-55.7% (KO on a high roll); Rotom-Heat Overheat -> Garchomp 21.4-38.8%.",
-   "false_text": "Damage calcs this turn: Rotom-Heat Thunderbolt -> Pelipper 172.5-340.7% (KO); Rotom-Heat Overheat -> Garchomp 42.8-77.6% (KO); Excadrill-Mega High Horsepower -> Garchomp 36.7-65.6% (KO on a high roll); Excadrill-Mega Iron Head -> Garchomp 31.2-55.7% (KO on a high roll)."
+   "true_text": "Damage calcs this turn: Rotom-Heat Thunderbolt -> Pelipper 172.5-340.7% (KO); Excadrill-Mega High Horsepower -> Garchomp 36.7-65.6% (KO on a high roll); Rotom-Heat Overheat -> Pelipper 30.5-61.5%; Rotom-Heat Overheat -> Garchomp 21.4-38.8%.",
+   "false_text": "Damage calcs this turn: Rotom-Heat Thunderbolt -> Pelipper 172.5-340.7% (KO); Rotom-Heat Overheat -> Garchomp 42.8-77.6% (KO); Excadrill-Mega High Horsepower -> Garchomp 36.7-65.6% (KO on a high roll); Rotom-Heat Overheat -> Pelipper 30.5-61.5%."
   },
   {
    "position": "3f885c97477d-1-p1-1",
@@ -1116,12 +1127,12 @@
    "claim_line_false": "Metagross-Mega Ice Punch -> Rillaboom 108.2-196.6% (KO)",
    "context_lines": [
     "Talonflame Brave Bird -> Rillaboom 73.4-133.7% (KO on a high roll)",
-    "Talonflame Flare Blitz -> Rillaboom 61.8-110.9% (KO on a high roll)",
-    "Talonflame Brave Bird -> Greninja 50.8-100% (KO on a high roll)"
+    "Metagross-Mega Zen Headbutt -> Greninja 60.3-117% (KO on a high roll)",
+    "Talonflame Flare Blitz -> Rillaboom 61.8-110.9% (KO on a high roll)"
    ],
    "factor": 2.0,
-   "true_text": "Damage calcs this turn: Talonflame Brave Bird -> Rillaboom 73.4-133.7% (KO on a high roll); Talonflame Flare Blitz -> Rillaboom 61.8-110.9% (KO on a high roll); Talonflame Brave Bird -> Greninja 50.8-100% (KO on a high roll); Metagross-Mega Ice Punch -> Rillaboom 54.1-98.3%.",
-   "false_text": "Damage calcs this turn: Metagross-Mega Ice Punch -> Rillaboom 108.2-196.6% (KO); Talonflame Brave Bird -> Rillaboom 73.4-133.7% (KO on a high roll); Talonflame Flare Blitz -> Rillaboom 61.8-110.9% (KO on a high roll); Talonflame Brave Bird -> Greninja 50.8-100% (KO on a high roll)."
+   "true_text": "Damage calcs this turn: Talonflame Brave Bird -> Rillaboom 73.4-133.7% (KO on a high roll); Metagross-Mega Zen Headbutt -> Greninja 60.3-117% (KO on a high roll); Talonflame Flare Blitz -> Rillaboom 61.8-110.9% (KO on a high roll); Metagross-Mega Ice Punch -> Rillaboom 54.1-98.3%.",
+   "false_text": "Damage calcs this turn: Metagross-Mega Ice Punch -> Rillaboom 108.2-196.6% (KO); Talonflame Brave Bird -> Rillaboom 73.4-133.7% (KO on a high roll); Metagross-Mega Zen Headbutt -> Greninja 60.3-117% (KO on a high roll); Talonflame Flare Blitz -> Rillaboom 61.8-110.9% (KO on a high roll)."
   },
   {
    "position": "95feb7024a1d-2-p2-4",
@@ -1139,12 +1150,12 @@
    "claim_line_false": "Metagross-Mega Ice Punch -> Rillaboom 108.2-196.6% (KO)",
    "context_lines": [
     "Talonflame Brave Bird -> Rillaboom 73.4-133.7% (KO on a high roll)",
-    "Talonflame Flare Blitz -> Rillaboom 61.8-110.9% (KO on a high roll)",
-    "Talonflame Brave Bird -> Greninja 50.8-100% (KO)"
+    "Metagross-Mega Zen Headbutt -> Greninja 60.3-117% (KO)",
+    "Talonflame Flare Blitz -> Rillaboom 61.8-110.9% (KO on a high roll)"
    ],
    "factor": 2.0,
-   "true_text": "Damage calcs this turn: Talonflame Brave Bird -> Rillaboom 73.4-133.7% (KO on a high roll); Talonflame Flare Blitz -> Rillaboom 61.8-110.9% (KO on a high roll); Talonflame Brave Bird -> Greninja 50.8-100% (KO); Metagross-Mega Ice Punch -> Rillaboom 54.1-98.3%.",
-   "false_text": "Damage calcs this turn: Metagross-Mega Ice Punch -> Rillaboom 108.2-196.6% (KO); Talonflame Brave Bird -> Rillaboom 73.4-133.7% (KO on a high roll); Talonflame Flare Blitz -> Rillaboom 61.8-110.9% (KO on a high roll); Talonflame Brave Bird -> Greninja 50.8-100% (KO)."
+   "true_text": "Damage calcs this turn: Talonflame Brave Bird -> Rillaboom 73.4-133.7% (KO on a high roll); Metagross-Mega Zen Headbutt -> Greninja 60.3-117% (KO); Talonflame Flare Blitz -> Rillaboom 61.8-110.9% (KO on a high roll); Metagross-Mega Ice Punch -> Rillaboom 54.1-98.3%.",
+   "false_text": "Damage calcs this turn: Metagross-Mega Ice Punch -> Rillaboom 108.2-196.6% (KO); Talonflame Brave Bird -> Rillaboom 73.4-133.7% (KO on a high roll); Metagross-Mega Zen Headbutt -> Greninja 60.3-117% (KO); Talonflame Flare Blitz -> Rillaboom 61.8-110.9% (KO on a high roll)."
   },
   {
    "position": "95feb7024a1d-2-p2-7",

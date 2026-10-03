@@ -1,9 +1,5 @@
 {
   "repository": "https://github.com/jrhuc/ai-draft-league.git",
-  "commit": "88b2112f987805846964d40b2412004496b97268",
-  "patch": {
-    "path": "patches/inspect-bridge.patch",
-    "sha256": "82bb7c0d77bd1f94431ecc45110265612641ac21000b9e44fbcf3c878b25ecb8"
-  },
-  "source_sha256": "464b07221209de2c30f9e319e9a1ac6332aea5a75fd195d471177dd195ce10be"
+  "commit": "463e01a99eef7db797cc6e2f5febe2456aab3190",
+  "source_sha256": "46210140b20b5eee30edb747c3aa7c2c7d1979531ab02deb2149c9093ce834fd"
 }

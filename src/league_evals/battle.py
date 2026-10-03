@@ -13,10 +13,10 @@ from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_ai.model import ChatMessageSystem, ChatMessageUser, execute_tools, get_model
 from inspect_ai.solver import Generate, Solver, TaskState, solver
-from inspect_ai.tool import Tool, ToolDef, ToolError, ToolParam, ToolParams, tool
+from inspect_ai.tool import ToolDef, ToolError, ToolParam, ToolParams
 from inspect_ai.util import store
 
-from .bridge import BridgeError, BridgeRejected, LeagueBridge
+from .bridge import EXTERNAL, BridgeError, BridgeRejected, LeagueBridge
 from .provenance import tree_hash
 from .scorers import CALCULATORS, discipline, efficiency, mechanics, outcome
 
@@ -24,33 +24,20 @@ DATA = Path(__file__).resolve().parent / "data" / "pools"
 if not DATA.exists():
     DATA = Path(__file__).resolve().parents[2] / "data" / "pools"
 
-INSTRUCTIONS = """\
-You are an expert VGC (doubles) player in a single game. Maximize your probability of winning it.
-The pinned Pokémon Showdown simulator decides legality and outcomes; this format may postdate \
-your training data, so trust the rules and menus you are given over remembered mechanics.
-Choose only from the numbered menus. Never invent a move, target, switch, effect, immunity, \
-stat, or revealed fact.
-{tool_instructions}
-Both active Pokémon are one joint decision. Within a turn, switches resolve first, then Mega \
-Evolutions in Speed order, then moves by priority and then Speed. One Mega Evolution is allowed \
-per game.
-When ready, call submit_action with one menu index per displayed slot (at team preview: the \
-ordered picks, leads first) and a short rationale. After it is accepted, end your reply and wait \
-for the next observation. Put submit_action last; later calls in the same reply are rejected.
-Each decision allows up to {budget} replies, tool calls included; \
-several tool calls fit in one reply. If none of them submits, the harness plays a default for you.
-"""
-TOOL_INSTRUCTIONS = {
-    "full": "estimate_damage and compare_action_order are available to check damage and action "
-    "order. They use this format's engine with the visible state and stated assumptions. "
-    "Trust a result only for the factors it says it applied. Use checks when useful to your "
-    "decision; several calls can be made in one reply. lookup_* and calculate_stats read rules.",
-    "no_calculators": "Damage and action-order calculators are unavailable in this condition. "
-    "lookup_* and calculate_stats are available for rules and stat reference. Use the visible "
-    "state, reference tools, and your reasoning to choose actions.",
-}
+TOOL_ACCESS = ("full", "no_calculators")
+BUDGET = (
+    "Each decision allows up to {budget} replies, tool calls included; if none of them submits, "
+    "the harness plays its default action for you."
+)
+NO_CALCULATORS = (
+    "estimate_damage and compare_action_order are unavailable in this condition; instructions "
+    "that mention them do not apply."
+)
 NUDGE = "Call submit_action with your choices for this decision."
 BUDGET_WARNING = "{remaining} replies remain for this decision before the harness plays a default. Submit now unless a check is still essential."
+CLOSED = "Decision already submitted. Wait for the next observation."
+ACCEPTED = "Accepted. End your reply; the next observation follows."
+DEFAULTED = "No decision was submitted in time; the harness played its default action."
 SAMPLE_INPUT = "Play one game. Each observation shows the battle state and your legal menus."
 
 
@@ -74,13 +61,34 @@ class Decision:
 class Session:
     bridge: LeagueBridge
     focal: str = "p1"
+    access: str = "full"
+    budget: int = 24
     decisions: list[Decision] = field(default_factory=list)
-    next_event: dict[str, Any] | None = None
+    exchange: int | None = None
+    usage: dict[str, float] = field(default_factory=dict)
+    rejection: str | None = None
     choice: str | None = None
 
     @property
     def current(self) -> Decision:
         return self.decisions[-1]
+
+    def open_exchange(self) -> int:
+        if self.exchange is None:
+            self.current.post_submission_calls += 1
+            raise ToolError(CLOSED)
+        return self.exchange
+
+    def resolved(self, row: dict[str, Any]) -> None:
+        accepted = row["outcome"] == "accepted"
+        self.choice = row["action"] if accepted else None
+        self.rejection = None if accepted else row.get("showdown_error") or "rejected"
+
+
+def parse_seeds(seeds: str | int | list[str | int]) -> list[int]:
+    """`-T seeds=1,2,3` reaches a task as a list, `-T seeds=1` as one value."""
+    items = seeds if isinstance(seeds, list) else str(seeds).split(",")
+    return [int(item) for item in items if str(item).strip()]
 
 
 def load_pool(name: str) -> dict[str, Any]:
@@ -95,7 +103,7 @@ def load_pool(name: str) -> dict[str, Any]:
 def battle_samples(
     pool: dict[str, Any],
     seeds: list[int],
-    opponent: str = "greedy",
+    opponent: str = "search",
     seats: tuple[str, ...] = ("p1", "p2"),
 ) -> list[Sample]:
     teams = pool["teams"]
@@ -142,6 +150,13 @@ def _battle_sample(
     )
 
 
+def policy_seat(seats: list[str], seat: str) -> str:
+    policies = [name for name in seats if name != EXTERNAL]
+    if seat not in policies:
+        raise BridgeError(f"opponent must be one of {', '.join(policies)}")
+    return seat
+
+
 PARAM_KEYS = set(ToolParam.model_fields) - {"additionalProperties"}
 """OpenAI's function schemas treat `additionalProperties: false` as strict mode, which then
 demands every property be required; the harness's optional arguments are optional."""
@@ -171,19 +186,28 @@ def tool_params(schema: dict[str, Any]) -> ToolParams:
     return ToolParams(type="object", properties=properties, required=required)
 
 
+def harness_tool(definition: dict[str, Any], execute: Any) -> ToolDef:
+    return ToolDef(
+        execute,
+        name=definition["name"],
+        description=definition["description"],
+        parameters=tool_params(definition["parameters"]),
+        parallel=False,
+    )
+
+
 def reference_tool(session: Session, definition: dict[str, Any]) -> ToolDef:
     name = definition["name"]
 
     async def execute(**kwargs: Any) -> str:
+        exchange = session.open_exchange()
         decision = session.current
-        if session.next_event is not None:
-            decision.post_submission_calls += 1
-            raise ToolError("Decision already submitted. Wait for the next observation.")
         record = {"name": name, "arguments": kwargs}
         decision.trace.append(record)
         try:
             result = await session.bridge.request(
-                "call", {"pid": session.focal, "name": name, "arguments": kwargs}
+                "tool",
+                {"pid": session.focal, "exchange": exchange, "name": name, "arguments": kwargs},
             )
         except BridgeRejected as error:
             record["error"] = str(error)
@@ -192,72 +216,73 @@ def reference_tool(session: Session, definition: dict[str, Any]) -> ToolDef:
         decision.calls.append(name)
         return result
 
-    return ToolDef(
-        execute,
-        name=name,
-        description=definition["description"],
-        parameters=tool_params(definition["parameters"]),
-        parallel=False,
-    )
+    return harness_tool(definition, execute)
 
 
-@tool
-def submit_action(session: Session) -> Tool:
-    async def execute(choices: list[int], rationale: str = "") -> str:
-        """Submit the joint decision for the current observation.
-
-        Args:
-            choices: One zero-based menu index per displayed slot, in slot order. At team
-                preview, the four ordered picks: leads first, then the back.
-            rationale: Your final reason for this decision, kept in your private record.
-        """
-        if session.next_event is not None:
-            session.current.post_submission_calls += 1
-            raise ToolError("Decision already submitted. Wait for the next observation.")
+def submission_tool(session: Session, definition: dict[str, Any]) -> ToolDef:
+    async def execute(**kwargs: Any) -> str:
+        params = {"pid": session.focal, "exchange": session.open_exchange(), "input": kwargs}
+        if session.usage:
+            params["usage"] = session.usage
         try:
-            reply = await session.bridge.request(
-                "submit", {"pid": session.focal, "choices": choices}
-            )
+            await session.bridge.request("submit", params)
         except BridgeRejected as error:
             raise ToolError(str(error)) from error
-        session.current.rationale = rationale
-        session.next_event = reply["next"]
-        session.choice = reply["choice"]
-        return f"Accepted: {reply['choice']}. End your reply; the next observation follows."
+        session.current.rationale = kwargs.get("rationale", "")
+        session.exchange = None
+        return ACCEPTED
 
-    return execute
+    return harness_tool(definition, execute)
 
 
-def turn_message(event: dict[str, Any]) -> str:
-    text = event["prompt"]
-    if event["error"]:
-        text += f"\nThe simulator rejected the previous action: {event['error']}"
-    return text
+def system_prompt(league: str, budget: int, access: str) -> str:
+    lines = [league, BUDGET.format(budget=budget)]
+    if access == "no_calculators":
+        lines.append(NO_CALCULATORS)
+    return "\n".join(lines)
 
 
 async def play_decision(
-    state: TaskState,
-    session: Session,
-    event: dict[str, Any],
-    tools: list[Tool | ToolDef],
-    max_generations: int,
+    state: TaskState, session: Session, event: dict[str, Any], note: str = ""
 ) -> None:
     model = get_model()
+    exchange, view = event["exchange"], event["decision"]
+    submission = exchange["submission"]
+    catalog = [
+        item
+        for item in exchange["tools"]
+        if session.access == "full" or item["name"] not in CALCULATORS
+    ]
+    tools = [reference_tool(session, item) for item in catalog]
+    tools.append(submission_tool(session, submission))
+    if not session.decisions:
+        system = system_prompt(exchange["system"], session.budget, session.access)
+        store().set("system_prompt", system)
+        store().set("tool_catalog", catalog)
+        state.messages = [
+            ChatMessageSystem(content=system),
+            ChatMessageUser(content=state.input_text),
+        ]
     decision = Decision(
-        number=event["decision"],
-        turn=event["turn"],
-        phase=event["phase"],
-        error=event["error"],
+        number=int(exchange["task"].removeprefix("decision-")),
+        turn=view["turn"],
+        phase=view["phase"],
+        error=session.rejection,
     )
     session.decisions.append(decision)
-    session.next_event = None
-    session.choice = None
-    state.messages.append(ChatMessageUser(content=turn_message(event)))
-    while session.next_event is None and decision.generations < max_generations:
+    session.exchange = exchange["id"]
+    session.rejection = None
+    session.usage = {}
+    state.messages.append(ChatMessageUser(content=exchange["prompt"] + note))
+    while session.exchange is not None and decision.generations < session.budget:
         decision.generations += 1
         output = await model.generate(state.messages, tools)
         state.output = output
         state.messages.append(output.message)
+        usage = output.usage.model_dump(exclude_none=True) if output.usage else {}
+        for key, value in usage.items():
+            if isinstance(value, (int, float)):
+                session.usage[key] = session.usage.get(key, 0) + value
         if output.message.tool_calls:
             executed = await execute_tools(state.messages, tools)
             # Inspect can reject an invalid schema before entering the tool body.
@@ -265,49 +290,43 @@ async def play_decision(
                 1
                 for message in executed.messages
                 if message.role == "tool"
-                and message.function == "submit_action"
+                and message.function == submission["name"]
                 and message.error is not None
             )
             decision.tool_errors += sum(
                 1
                 for message in executed.messages
                 if message.role == "tool"
-                and message.function != "submit_action"
+                and message.function != submission["name"]
                 and message.error is not None
             )
             state.messages.extend(executed.messages)
         else:
             state.messages.append(ChatMessageUser(content=NUDGE))
-        remaining = max_generations - decision.generations
-        if session.next_event is None and remaining in (3, 1):
+        remaining = session.budget - decision.generations
+        if session.exchange is not None and remaining in (3, 1):
             state.messages.append(
                 ChatMessageUser(content=BUDGET_WARNING.format(remaining=remaining))
             )
-    if session.next_event is None:
+    if session.exchange is not None:
         decision.defaulted = True
-        reply = await session.bridge.request("submit", {"pid": session.focal, "choices": "default"})
-        session.next_event = reply["next"]
-        session.choice = reply["choice"]
-        state.messages.append(
-            ChatMessageUser(
-                content=f"No decision was submitted in time; the harness played the default: {reply['choice']}."
-            )
+        await session.bridge.request(
+            "abandon",
+            {"pid": session.focal, "exchange": session.exchange, "reason": "reply budget spent"},
         )
+        session.exchange = None
+        state.messages.append(ChatMessageUser(content=DEFAULTED))
 
 
 @solver
-def play_battle(
-    sheets: str = "open",
-    max_generations: int = 24,
-    league_prompt: bool = False,
-    tool_access: str = "full",
-    max_decisions: int = 200,
-) -> Solver:
+def play_battle(max_generations: int = 24, max_decisions: int = 200) -> Solver:
     async def solve(state: TaskState, generate: Generate) -> TaskState:
         meta = state.metadata
-        access = meta.get("tool_access", tool_access)
-        bridge = await LeagueBridge.open(meta["format"], sheets)
-        session = Session(bridge, focal=meta["focal_seat"])
+        bridge = await LeagueBridge.open(meta["format"])
+        session = Session(
+            bridge, focal=meta["focal_seat"], access=meta["tool_access"], budget=max_generations
+        )
+        other = "p2" if session.focal == "p1" else "p1"
         store().set("provenance", bridge.hello)
         store().set("task_sha256", tree_hash(Path(__file__).parent, ("*.py",)))
         store().set("completion", "incomplete")
@@ -315,53 +334,40 @@ def play_battle(
             for key in ("harness_commit", "showdown_commit"):
                 if meta["provenance"].get(key) != bridge.hello.get(key):
                     raise BridgeError(f"pool and engine {key} differ; re-export or restore engine")
-            catalog = await bridge.request("tools")
-            if access == "no_calculators":
-                catalog = [item for item in catalog if item["name"] not in CALCULATORS]
-            tools = [reference_tool(session, item) for item in catalog] + [submit_action(session)]
-            system = (
-                await bridge.request("system")
-                if league_prompt
-                else INSTRUCTIONS.format(
-                    budget=max_generations, tool_instructions=TOOL_INSTRUCTIONS[access]
-                )
-            )
-            if league_prompt:
-                system += f"\nEach decision allows {max_generations} replies. Submit last."
-            store().set("system_prompt", system)
-            store().set("tool_catalog", catalog)
-            state.messages = [
-                ChatMessageSystem(content=system),
-                ChatMessageUser(content=state.input_text),
-            ]
-            event = await bridge.request(
+            await bridge.request(
                 "start",
                 {
-                    "format": meta["format"],
                     "seed": meta["seed"],
-                    session.focal: {"name": "focal", "team": meta["focal_packed"]},
-                    "p2" if session.focal == "p1" else "p1": {
+                    session.focal: {
+                        "name": "focal",
+                        "team": meta["focal_packed"],
+                        "seat": EXTERNAL,
+                    },
+                    other: {
                         "name": "opponent",
                         "team": meta["opponent_packed"],
+                        "seat": policy_seat(bridge.hello["seats"], meta["opponent_policy"]),
                     },
-                    "external": [session.focal],
-                    "opponent": meta["opponent_policy"],
-                    "opponent_seed": meta["seed"],
+                    "policy_seed": meta["seed"],
                 },
             )
-            while event["kind"] == "decision":
+            while (event := await bridge.next_event())["kind"] != "end":
+                if event["kind"] == "decision":
+                    session.resolved(event["row"])
+                    continue
+                if event["kind"] != "exchange":
+                    raise BridgeError(f"unexpected bridge event: {event['kind']}")
                 if len(session.decisions) >= max_decisions or state.completed:
                     store().set(
                         "completion", "decision_limit" if not state.completed else "interrupted"
                     )
                     return state
-                await play_decision(state, session, event, tools, max_generations)
-                event = session.next_event
-            if event["kind"] != "end":
-                raise BridgeError(f"unexpected bridge event: {event['kind']}")
+                await play_decision(state, session, event)
             result = event["outcome"]
             store().set("outcome", {k: v for k, v in result.items() if k != "log"})
             store().set("log", result["log"])
+            if result["error"]:
+                raise BridgeError("harness failed: " + result["error"])
             if any(line.startswith("|error|") for line in result["log"]):
                 raise BridgeError("simulator failed: " + "\n".join(result["log"][-5:]))
             store().set("audit", await bridge.request("audit"))
@@ -380,30 +386,22 @@ def play_battle(
 @task
 def vgc_battle(
     pool: str = "test",
-    seeds: str = "1",
-    opponent: str = "greedy",
-    sheets: str = "open",
+    seeds: str | list[str] = "1",
+    opponent: str = "search",
     max_generations: int = 24,
-    league_prompt: bool = False,
     tool_access: str = "full",
     focal_seat: str = "both",
     max_decisions: int = 200,
 ) -> Task:
-    seed_list = [int(s) for s in str(seeds).split(",") if s.strip()]
-    if opponent not in {"random", "greedy"}:
-        raise ValueError("opponent must be random or greedy")
-    if sheets != "open":
-        raise ValueError("only open sheets are supported: the pinned format reveals team sheets")
+    seed_list = parse_seeds(seeds)
     if max_generations < 1 or max_decisions < 1:
         raise ValueError("max_generations and max_decisions must be positive")
-    if tool_access not in {*TOOL_INSTRUCTIONS, "both"}:
+    if tool_access not in {*TOOL_ACCESS, "both"}:
         raise ValueError("tool_access must be full, no_calculators, or both")
-    if league_prompt and tool_access != "full":
-        raise ValueError("league_prompt requires full tools; its instructions assume calculators")
     if focal_seat not in {"p1", "p2", "both"}:
         raise ValueError("focal_seat must be p1, p2, or both")
     seats = ("p1", "p2") if focal_seat == "both" else (focal_seat,)
-    conditions = tuple(TOOL_INSTRUCTIONS) if tool_access == "both" else (tool_access,)
+    conditions = TOOL_ACCESS if tool_access == "both" else (tool_access,)
     samples = []
     for sample in battle_samples(load_pool(pool), seed_list, opponent, seats):
         for condition in conditions:
@@ -417,18 +415,11 @@ def vgc_battle(
             )
     return Task(
         dataset=MemoryDataset(samples, name=pool),
-        solver=play_battle(
-            sheets=sheets,
-            max_generations=max_generations,
-            league_prompt=league_prompt,
-            tool_access=tool_access,
-            max_decisions=max_decisions,
-        ),
+        solver=play_battle(max_generations=max_generations, max_decisions=max_decisions),
         scorer=[outcome(), mechanics(), discipline(), efficiency()],
-        version=2,
+        version=3,
         metadata={
             "pool": pool,
-            "sheets": sheets,
             "opponent_policy": opponent,
             "tool_access": tool_access,
             "focal_seat": focal_seat,
