@@ -1,9 +1,9 @@
 # league-evals
 
-Three small [Inspect](https://inspect.aisi.org.uk) evaluations of a model playing Pokémon VGC doubles
-through the [AI Draft League](https://github.com/jrhuc/ai-draft-league) harness. Each asks one
-question, is scored by the pinned simulator with no judge model, and keeps every decision, tool call,
-and log it was scored from.
+[Inspect](https://inspect.aisi.org.uk) evaluations of a model playing Pokémon VGC doubles through
+the [AI Draft League](https://github.com/jrhuc/ai-draft-league) harness, from one decision up to a
+whole season. Each asks one question, is scored by the pinned simulator with no judge model, and
+keeps every decision, tool call, and log it was scored from.
 
 VGC supplies joint actions, hidden information, and stochastic outcomes inside a reproducible
 simulator, and the league supplies real games between frontier models: 27 of one season's 28 games
@@ -15,10 +15,12 @@ turn of them.
 | [`vgc_position`](docs/positions.md) | Where the highest-damage action is not the highest-win-rate action, which does a model choose? | one recorded decision, scored against offline rollouts |
 | [`vgc_note`](docs/notes.md) | When a notebook line is wrong, does the model re-run the calculation or act on it, and does that depend on who the note says wrote it? | the same kind of decision, with a notebook excerpt attached |
 | [`vgc_battle`](docs/design.md) | Does calculator access improve matched game outcomes? | one whole game against a fixed opponent |
+| [`vgc_league`](docs/running.md#league-task) | Where does a model finish when it manages a franchise for a whole season against bot franchises? | one season: draft, builds, every game, reviews, and trades |
 
-These are evaluations of a model plus its tools in one game or one decision. Transfer to other domains
-and adaptation across a season are untested here; what the league showed about those is qualitative
-and written up elsewhere.
+The first three evaluate a model plus its tools in one game or one decision. `vgc_league` is the
+long-horizon one: the model drafts against bots, builds a six for every opponent, plays every game,
+reviews between weeks, and may trade, and it is scored by where it finishes. Transfer to other domains
+is untested here.
 
 ## What we know so far
 
@@ -113,6 +115,17 @@ uv run inspect eval league_evals/vgc_battle \
   --no-fail-on-error --max-samples 2 --log-dir logs/pilot
 uv run python -m league_evals.report logs/pilot
 uv run python -m league_evals.report logs/pilot --compare NO_CALCULATORS_ID,FULL_ID
+```
+
+A season is one sample and the most expensive task: a four-seat league is a ten-pick draft, three
+round-robin series and possibly a final, each best of three, with a build before every series and a
+review after every game. Run the no-model controls first; they cost nothing but time:
+
+```sh
+uv run inspect eval league_evals/vgc_league --model mockllm/model -T control=random -T seeds=1,2,3
+uv run inspect eval league_evals/vgc_league --model mockllm/model -T control=bot -T seeds=1,2,3
+uv run inspect eval league_evals/vgc_league --model "$EVAL_MODEL" -M strict_tools=false \
+  -T seeds=1 --no-fail-on-error --log-dir logs/league
 ```
 
 Use `--limit` in a separate log directory for a plumbing check, never as a model comparison.

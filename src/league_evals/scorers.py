@@ -298,3 +298,94 @@ def note_trust() -> Scorer:
         return Score(value=summary, answer=command, explanation=_explain(summary))
 
     return score
+
+
+def league_summary(outcome: dict[str, Any], focal: int) -> dict[str, Any]:
+    entrants = len(outcome["entrants"])
+    placement = outcome["placement"].index(focal) + 1
+    series = [s for s in outcome["series"] if focal in s["entrants"]]
+    sides = [("p1", "p2") if s["entrants"][0] == focal else ("p2", "p1") for s in series]
+    won = sum(s["score"][own] for s, (own, _) in zip(series, sides))
+    lost = sum(s["score"][other] for s, (_, other) in zip(series, sides))
+    return {
+        "completed": 1.0,
+        "placement": placement,
+        "placement_score": (entrants - placement) / (entrants - 1),
+        "champion": float(placement == 1),
+        "playoffs": float(any(s["stage"] == "playoff" for s in series)),
+        "regular_season_rank": next(
+            rank for rank, row in enumerate(outcome["standings"], 1) if row["entrant"] == focal
+        ),
+        "series_win_rate": (
+            sum(1 for s in series if s["winner"] == focal) / len(series) if series else UNDEFINED
+        ),
+        "game_win_rate": won / (won + lost) if won + lost else UNDEFINED,
+    }
+
+
+LEAGUE_KEYS = (
+    "completed",
+    "placement",
+    "placement_score",
+    "champion",
+    "playoffs",
+    "regular_season_rank",
+    "series_win_rate",
+    "game_win_rate",
+)
+
+
+@scorer(metrics={key: [mean()] for key in LEAGUE_KEYS})
+def league_standing() -> Scorer:
+    async def score(state: TaskState, target: Target) -> Score:
+        result = state.store.get("outcome")
+        if not result or state.store.get("completion") != "complete":
+            empty = {key: UNDEFINED for key in LEAGUE_KEYS} | {"completed": 0.0}
+            return Score(value=empty, reason="no_response", explanation="no completed season")
+        summary = league_summary(result, state.store.get("focal_entrant"))
+        return Score(value=summary, answer=str(summary["placement"]), explanation=_explain(summary))
+
+    return score
+
+
+def conduct_summary(steps: list[dict[str, Any]], total_tokens: int) -> dict[str, Any]:
+    tasks = len(steps)
+
+    def per_task(key: str) -> float:
+        return sum(s[key] for s in steps) / tasks if tasks else UNDEFINED
+
+    return {
+        "tasks": tasks,
+        "battle_decisions": sum(1 for s in steps if s["tool"] == "submit_action"),
+        "defaulted_decisions": sum(1 for s in steps if s["defaulted"]),
+        "rejected_submissions": sum(s["rejected"] for s in steps),
+        "tool_errors": sum(s["tool_errors"] for s in steps),
+        "post_submission_calls": sum(s["post_submission_calls"] for s in steps),
+        "tool_calls_per_task": per_task("tool_calls"),
+        "generations_per_task": per_task("generations"),
+        "total_tokens": total_tokens,
+    }
+
+
+@scorer(
+    metrics={
+        key: [mean()]
+        for key in (
+            "tasks",
+            "battle_decisions",
+            "defaulted_decisions",
+            "rejected_submissions",
+            "tool_errors",
+            "post_submission_calls",
+            "tool_calls_per_task",
+            "generations_per_task",
+            "total_tokens",
+        )
+    }
+)
+def league_conduct() -> Scorer:
+    async def score(state: TaskState, target: Target) -> Score:
+        summary = conduct_summary(state.store.get("steps", []), state.token_usage)
+        return Score(value=summary, explanation=_explain(summary))
+
+    return score

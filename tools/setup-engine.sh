@@ -12,7 +12,7 @@ target="$here/engine/ai-draft-league"
 if [ ! -d "$target/.git" ]; then git clone "$repo" "$target"; fi
 # Re-running is safe, but never overwrite an operator's engine changes.
 if [ "$(git -C "$target" rev-parse HEAD)" != "$commit" ]; then
-  if [ -n "$(git -C "$target" status --porcelain)" ]; then
+  if [ -n "$(git -C "$target" status --porcelain -- . ':!packages/league/eval-build.json')" ]; then
     echo "engine checkout has changes; use a fresh engine directory" >&2; exit 1
   fi
   git -C "$target" fetch --quiet origin "$commit"

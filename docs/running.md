@@ -56,6 +56,48 @@ Model-correctable tool errors and refused submissions can be retried within the 
 the simulator rejects reopens the decision as a new one. Bridge timeouts, malformed responses, and
 harness or simulator failures produce sample errors with partial traces.
 
+## League task
+
+`vgc_league` runs one whole season per seed through the bridge's `league` session. The model holds
+seat `external:model`; the other seats are `bot`. The seed shuffles the draft order and fixes every
+game seed, so two models on the same seed face the same schedule and the same bots.
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `seeds` | `1` | Unique comma-separated season seeds |
+| `bots` | `3` | Bot franchises; four seats play a three-week round robin and a final, five or more add semifinals |
+| `board` | `regmc-202609` | Draft board in the harness |
+| `transactions` | `true` | Transaction windows after the harness's default weeks |
+| `concurrency` | `4` | Series played at once |
+| `control` | empty | `bot` or `random` in the focal seat instead of a model |
+| `max_generations` | `40` | Replies per task, tool calls included |
+
+`bot` is the league's fixed franchise policy. It drafts by board cost, putting its budget into six
+core picks. It brings its six highest-cost picks with tournament or curated sets, and it battles with
+the `search` opponent. It files no reviews, makes no transactions, and declines every trade, so a
+model can only trade through free agency.
+
+Every task arrives with the harness's own system prompt, tools, and submission schema. Tasks that
+share a harness session share one conversation: a franchise's draft, one game and its review, one
+build. Tool results from a session's earlier tasks are cut to their first 400 characters, because
+each prompt restates the state it needs.
+
+A battle decision that spends its budget plays the harness default and counts as defaulted. Any other
+task that spends its budget ends the season with a sample error, because the harness has no default
+draft pick, build, or review.
+
+`league_standing` reports these per season:
+- `placement`: the playoff bracket first, then regular-season rank;
+- `placement_score`: 1 for the champion and 0 for last;
+- `champion`, `playoffs` and `regular_season_rank`;
+- the series and game win rates.
+
+`league_conduct` counts tasks, battle decisions, defaults, refused submissions, tool use per task,
+and tokens.
+
+The run directory (`LEAGUE_RUNS`, default `logs/league-runs/`) is an ordinary league run, so the
+harness's `monitor` and the site's live watch read it. Its path is in each sample's store.
+
 ## Position task
 
 `vgc_position` scores one recorded decision per sample against offline rollouts; see

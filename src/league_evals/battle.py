@@ -180,7 +180,7 @@ def tool_params(schema: dict[str, Any]) -> ToolParams:
     return ToolParams(type="object", properties=properties, required=required)
 
 
-def _tool(definition: dict[str, Any], execute: Any) -> ToolDef:
+def harness_tool(definition: dict[str, Any], execute: Any) -> ToolDef:
     return ToolDef(
         execute,
         name=definition["name"],
@@ -210,7 +210,7 @@ def reference_tool(session: Session, definition: dict[str, Any]) -> ToolDef:
         decision.calls.append(name)
         return result
 
-    return _tool(definition, execute)
+    return harness_tool(definition, execute)
 
 
 def submission_tool(session: Session, definition: dict[str, Any]) -> ToolDef:
@@ -226,7 +226,7 @@ def submission_tool(session: Session, definition: dict[str, Any]) -> ToolDef:
         session.exchange = None
         return ACCEPTED
 
-    return _tool(definition, execute)
+    return harness_tool(definition, execute)
 
 
 def system_prompt(league: str, budget: int, access: str) -> str:

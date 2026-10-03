@@ -1,4 +1,4 @@
-"""Client for `vgcleague bridge`, the harness's single-battle driver, speaking JSON lines on stdio."""
+"""Client for `vgcleague bridge`, which plays one battle or one league over JSON lines on stdio."""
 
 from __future__ import annotations
 
@@ -43,7 +43,8 @@ def bridge_command(directory: Path) -> list[str]:
 
 
 class LeagueBridge:
-    """One harness process playing one battle. Replies and events interleave on its stdout."""
+    """One harness process playing one battle or one league. Replies and events interleave on its
+    stdout."""
 
     def __init__(
         self,
@@ -67,6 +68,24 @@ class LeagueBridge:
 
     @classmethod
     async def open(cls, format: str = FORMAT, directory: Path | None = None) -> LeagueBridge:
+        return await cls._session("open", {"format": format}, directory)
+
+    @classmethod
+    async def league(
+        cls, params: dict[str, Any], directory: Path | None = None, event_timeout: float = 3600
+    ) -> LeagueBridge:
+        """A season has long stretches without a task for the outside seat, such as a final
+        between two bots."""
+        return await cls._session("league", params, directory, event_timeout)
+
+    @classmethod
+    async def _session(
+        cls,
+        method: str,
+        params: dict[str, Any],
+        directory: Path | None,
+        event_timeout: float = 600,
+    ) -> LeagueBridge:
         directory = directory or league_dir()
         process = await asyncio.create_subprocess_exec(
             *bridge_command(directory),
@@ -76,9 +95,9 @@ class LeagueBridge:
             stderr=asyncio.subprocess.PIPE,
             limit=16 * 1024 * 1024,
         )
-        bridge = cls(process)
+        bridge = cls(process, event_timeout=event_timeout)
         try:
-            bridge.hello = await bridge.request("open", {"format": format})
+            bridge.hello = await bridge.request(method, params)
             from .provenance import engine_provenance
 
             bridge.hello.update(engine_provenance(directory))
