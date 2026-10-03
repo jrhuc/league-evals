@@ -34,7 +34,7 @@ engine build/integration job. Packaged wheels include the team pool; an installe
 | --- | --- |
 | `random` | A uniformly random legal action |
 | `greedy` | The highest projected damage for each active Pokémon; never switches by choice |
-| `search:fast`, `search` (`search:standard`), `search:deep` | The equilibrium of a payoff matrix filled by greedy rollouts; deeper levels take longer, up to about 30 seconds a turn |
+| `search:fast`, `search` (`search:standard`), `search:deep` | The equilibrium of a payoff matrix filled by three-turn rollouts that protect, switch and set speed control; deeper levels take longer, up to about 30 seconds a turn |
 
 `greedy` and `search` play from the live simulator, so they know the model's bench and exact stats.
 They never see the model's choice for the current decision.
