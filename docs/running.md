@@ -95,6 +95,12 @@ draft pick, build, or review.
 `league_conduct` counts tasks, battle decisions, defaults, refused submissions, tool use per task,
 and tokens.
 
+A four-seat season on seed 7 had 222 model tasks: 10 picks, a name, 4 builds, 189 battle
+decisions, 12 reviews and 6 transaction tasks. A scripted manager that never looks anything up sent
+282 requests and about 1.6M input tokens; a model that uses its tools sends several times that.
+Sessions only ever append, so prompt caching cuts the bill most. Set `--token-limit` per season,
+not per decision. A four-seat `control=random` season took 18 minutes with no model at all.
+
 The run directory (`LEAGUE_RUNS`, default `logs/league-runs/`) is an ordinary league run, so the
 harness's `monitor` and the site's live watch read it. Its path is in each sample's store.
 
