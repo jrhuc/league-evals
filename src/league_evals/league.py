@@ -26,7 +26,7 @@ from inspect_ai.solver import Generate, Solver, TaskState, solver
 from inspect_ai.tool import ToolDef, ToolError
 from inspect_ai.util import store
 
-from .battle import harness_tool
+from .battle import harness_tool, parse_seeds
 from .bridge import BridgeError, BridgeRejected, LeagueBridge
 from .provenance import tree_hash
 from .scorers import league_conduct, league_standing
@@ -259,7 +259,7 @@ def league_samples(
 
 @task
 def vgc_league(
-    seeds: str = "1",
+    seeds: str | list[str] = "1",
     bots: int = 3,
     board: str = "regmc-202609",
     transactions: bool = True,
@@ -269,7 +269,7 @@ def vgc_league(
 ) -> Task:
     """`control=bot` or `control=random` puts that fixed policy in the focal seat, so the same
     pipeline measures what a franchise without a model achieves."""
-    seed_list = [int(s) for s in str(seeds).split(",") if s.strip()]
+    seed_list = parse_seeds(seeds)
     if max_generations < 1:
         raise ValueError("max_generations must be positive")
     focal = control or MODEL_SEAT

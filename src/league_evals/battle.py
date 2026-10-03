@@ -85,6 +85,12 @@ class Session:
         self.rejection = None if accepted else row.get("showdown_error") or "rejected"
 
 
+def parse_seeds(seeds: str | int | list[str | int]) -> list[int]:
+    """`-T seeds=1,2,3` reaches a task as a list, `-T seeds=1` as one value."""
+    items = seeds if isinstance(seeds, list) else str(seeds).split(",")
+    return [int(item) for item in items if str(item).strip()]
+
+
 def load_pool(name: str) -> dict[str, Any]:
     if not name or Path(name).name != name or name in {".", ".."}:
         raise ValueError("pool must be a name, not a path")
@@ -380,14 +386,14 @@ def play_battle(max_generations: int = 24, max_decisions: int = 200) -> Solver:
 @task
 def vgc_battle(
     pool: str = "test",
-    seeds: str = "1",
+    seeds: str | list[str] = "1",
     opponent: str = "search",
     max_generations: int = 24,
     tool_access: str = "full",
     focal_seat: str = "both",
     max_decisions: int = 200,
 ) -> Task:
-    seed_list = [int(s) for s in str(seeds).split(",") if s.strip()]
+    seed_list = parse_seeds(seeds)
     if max_generations < 1 or max_decisions < 1:
         raise ValueError("max_generations and max_decisions must be positive")
     if tool_access not in {*TOOL_ACCESS, "both"}:

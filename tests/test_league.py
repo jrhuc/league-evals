@@ -4,11 +4,12 @@ from pathlib import Path
 
 import pytest
 from inspect_ai import eval_async
+from inspect_ai._cli.util import parse_cli_args
 from inspect_ai.model import ModelOutput
 from mock_model import offline_model
 
 from league_evals import league
-from league_evals.battle import harness_tool
+from league_evals.battle import harness_tool, vgc_battle
 from league_evals.bridge import BridgeRejected
 from league_evals.scorers import conduct_summary, league_summary
 
@@ -230,3 +231,11 @@ def test_conduct_counts_steps():
     assert summary["tasks"] == 2 and summary["battle_decisions"] == 1
     assert summary["defaulted_decisions"] == 1 and summary["rejected_submissions"] == 2
     assert summary["tool_calls_per_task"] == 1.0 and summary["generations_per_task"] == 3.0
+
+
+def test_seed_lists_from_the_command_line_become_one_sample_per_seed():
+    many = parse_cli_args(("seeds=1,2,3", "control=bot"))
+    assert len(league.vgc_league(**many).dataset) == 3
+    assert len(league.vgc_league(**parse_cli_args(("seeds=4",))).dataset) == 1
+    one_seed = len(vgc_battle(**parse_cli_args(("seeds=1",))).dataset)
+    assert len(vgc_battle(**parse_cli_args(("seeds=1,2",))).dataset) == 2 * one_seed
