@@ -34,14 +34,11 @@ damage-greedy one on independent dice. Scored on a third, independent set of rol
 | Damage-greedy action | 157 | 0.47 | 3.2% | 0.0% |
 | Uniformly random legal action | 157 | 0.50 | – | – |
 | What the league model actually played | 157 | 0.23 | 39.5% | 77.1% |
-| The engine's search, greedy rollouts (previous) | 157 | 0.18 | 48.4% | 82.8% |
-| The engine's search, current | 157 | 0.27 | 31.8% | 66.9% |
+| The engine's rollout search opponent | 157 | 0.18 | 48.4% | 82.8% |
 
-The search rows are the `search` policy `vgc_battle` plays against, asked for its own action on each
-decision. It reads the simulator's battle, so it knows the opposing bench. The previous search rolled
-out the same damage continuation the scoring assumes, which favours it. The current search rolls out a
-policy that protects, switches and sets speed control. The scoring continuation undervalues exactly
-those moves. In games, the current search beat the previous one 65 of 120, which is within noise.
+The last row is the `search` policy `vgc_battle` now plays against, asked for its own action on each
+decision. It reads the simulator's battle, so it knows the opposing bench, and it shares the damage
+continuation the scoring rollouts assume; both favour it.
 
 The rollouts assume a continuation nobody played, so they were checked against what happened: the
 value of the action a league model really took predicts who won that game with AUC 0.89 over all 494
@@ -58,8 +55,7 @@ attempts. On those 99 decisions:
 | Damage-greedy action | 0.45 | 2.0% | 0.0% |
 | Uniformly random legal action | 0.49 | – | – |
 | What the league model actually played | 0.22 | 42.4% | 75.8% |
-| The engine's search, greedy rollouts (previous) | 0.18 | 53.5% | 80.8% |
-| The engine's search, current | 0.27 | 33.3% | 65.7% |
+| The engine's rollout search opponent | 0.18 | 53.5% | 80.8% |
 | Claude Opus 5.5 | 0.23 | 39.4% | 74.7% |
 
 Paired with the league's move on each decision, Opus 5.5 did better on 32, the same on 35, and worse
@@ -74,7 +70,7 @@ that calculation and whether it plays the claimed attack more than with the hone
 [Design, what the league's real notes looked like, and limits](docs/notes.md).
 
 **Whole games.** A no-model control that always takes the harness default wins 164/180 against a random
-opponent, 28/180 against the damage-greedy one, and 12/180 against the rollout search, on six teams,
+opponent, 28/180 against the damage-greedy one, and 9/180 against the rollout search, on six teams,
 both seats, and three seeds. The search itself beats greedy in 27 of 30 games and random in 12 of 12.
 Random is too weak for a headline; whether the search separates stronger models is open, since no
 model has played it yet. The eight [legacy model games](examples/logs) are smoke traces from an

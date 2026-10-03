@@ -33,7 +33,7 @@ establish causation: models may choose to check the hardest decisions. The oppon
 from the live simulator and is the same in both arms.
 
 The no-model default policy is a negative control. Its 91.1% win rate against random exposes that
-opponent's weakness; 15.6% against greedy and 6.7% against the rollout search establish separation
+opponent's weakness; 15.6% against greedy and 5.0% against the rollout search establish separation
 from this particular weak policy. None of these establishes difficulty for a competent human or
 discrimination among stronger models.
 
